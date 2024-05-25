@@ -36,7 +36,6 @@ from .region import MemoryTlpRegion, IoTlpRegion
 from .switch import Switch
 from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
 from .utils import PcieId
-from .pci import PciDevice, PciHostBridge
 
 
 class RootComplex(Switch):
@@ -71,6 +70,7 @@ class RootComplex(Switch):
 
         self.upstream_bridge.upstream_tx_handler = self.downstream_recv
 
+        from .pci import PciHostBridge
         self.host_bridge = PciHostBridge(rc=self)
 
         self.io_base = 0x8000_0000

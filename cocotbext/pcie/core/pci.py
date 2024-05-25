@@ -23,15 +23,17 @@ THE SOFTWARE.
 """
 
 import struct
+from typing import Optional
 
 from cocotb.triggers import Timer
 
 from .caps import PciCapId, PciExtCapId
 from .utils import PcieId, align
 
+from .rc import RootComplex
 
 class PciHostBridge:
-    def __init__(self, rc):
+    def __init__(self, rc: RootComplex):
         self.rc = rc
 
         self.bus_num = 0
@@ -72,13 +74,15 @@ class PciHostBridge:
 
 
 class PciBus:
-    def __init__(self, parent, bridge, bus_num, rc=None):
-        self.rc = rc
+    def __init__(self, parent: Optional[PciHostBridge], bridge: Optional[PciHostBridge], bus_num: int, rc: Optional[RootComplex] = None):
 
         if parent:
             self.rc = parent.rc
         elif bridge:
             self.rc = bridge.rc
+        else:
+            assert rc is not None
+            self.rc = rc
 
         # parent bus
         self.parent = parent
