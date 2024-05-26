@@ -77,6 +77,7 @@ class Bridge(Function):
         self.root = False
 
         self.upstream_tx_handler = None
+        self.downstream_tx_name = None
         self.downstream_tx_handler = None
 
     """
@@ -396,7 +397,7 @@ class Bridge(Function):
             self.sec_master_data_parity_error = True
         if self.downstream_tx_handler is None:
             raise Exception("Transmit handler not set")
-        xt_print(f"bridge send to downstream_tx_handler={self.downstream_tx_handler}")
+        xt_print(f"bridge send to downstream_port={self.downstream_tx_name}")
         await self.downstream_tx_handler(tlp)
 
     async def downstream_recv(self, tlp):
@@ -501,6 +502,7 @@ class SwitchDownstreamPort(Bridge):
         self.device_id = 0x0004
 
         self.downstream_port = None
+        self.downstream_tx_name = None
         self.downstream_tx_handler = None
         self.set_downstream_port(SimPort(self.name, fc_init=[[64, 1024, 64, 64, 64, 1024]]*8))
 
@@ -510,6 +512,7 @@ class SwitchDownstreamPort(Bridge):
         port.rx_handler = self.downstream_recv
         self.downstream_port = port
         assert isinstance(port, SimPort)
+        self.downstream_tx_name = f"{self.name}.downstream.{port.name}"
         self.downstream_tx_handler = port.send
 
     def connect(self, port):
