@@ -23,15 +23,20 @@ THE SOFTWARE.
 """
 
 import struct
+from typing import Optional
 
 from cocotb.triggers import Timer
+from cocotb.xt_printer import xt_print
+from cocotb.utils import get_sim_time
+from dpkt import hexdump
 
 from .caps import PciCapId, PciExtCapId
 from .utils import PcieId, align
 
+from .rc import RootComplex
 
 class PciHostBridge:
-    def __init__(self, rc):
+    def __init__(self, rc: RootComplex):
         self.rc = rc
 
         self.bus_num = 0
@@ -58,6 +63,7 @@ class PciHostBridge:
 
     async def probe(self, timeout=1000, timeout_unit='ns'):
         await self.scan(timeout=timeout, timeout_unit=timeout_unit)
+        print("scan finished")
         await self.assign_resources()
 
     async def scan(self, timeout=1000, timeout_unit='ns'):
@@ -72,13 +78,15 @@ class PciHostBridge:
 
 
 class PciBus:
-    def __init__(self, parent, bridge, bus_num, rc=None):
-        self.rc = rc
+    def __init__(self, parent: Optional[PciHostBridge], bridge: Optional[PciHostBridge], bus_num: int, rc: Optional[RootComplex] = None):
 
         if parent:
             self.rc = parent.rc
         elif bridge:
             self.rc = bridge.rc
+        else:
+            assert rc is not None
+            self.rc = rc
 
         # parent bus
         self.parent = parent
@@ -156,7 +164,10 @@ class PciBus:
             self.rc.log.info("Enumerating bus %d device %d", self.bus_num, d)
 
             # read vendor ID and device ID
+            # xt_print(f"reading at {get_sim_time('ns')}")
             val = await self.rc.config_read_dword(dev_id, 0x000, 'little', timeout, timeout_unit)
+            # xt_print(f"reading end at {get_sim_time('ns')}")
+
 
             if val in {0, 0xffffffff, 0xffff0000, 0x0000ffff}:
                 continue
@@ -173,6 +184,7 @@ class PciBus:
 
                 # read vendor ID and device ID
                 val = await self.rc.config_read_dword(dev_id, 0x000, 'little', timeout, timeout_unit)
+                xt_print(f"read configuration dev_id={dev_id}:\n{val:08x}")
 
                 if val is None or val == 0xffffffff:
                     continue
