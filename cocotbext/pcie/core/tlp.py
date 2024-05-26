@@ -27,6 +27,7 @@ import struct
 
 from .dllp import FcType
 from .utils import PcieId
+from cocotb.xt_printer import xt_print
 
 
 # TLP formats
@@ -656,6 +657,33 @@ class Tlp:
             f"ph={self.ph}, "
             f"seq={self.seq})"
         )
+
+    def to_str(self):
+        return (
+            f"{type(self).__name__}(data={self.data}\n"
+            f"fmt_type={int(self.fmt_type.value[1])}, {self.fmt_type}\n"
+            f"tc={int(self.tc)}, {self.tc!s}\n"
+            f"ln={int(self.ln)}, {self.ln}\n"
+            f"th={int(self.th)}, {self.th}\n"
+            f"td={int(self.td)}, {self.td}\n"
+            f"ep={int(self.ep)}, {self.ep}\n"
+            f"attr={int(self.attr)}, {self.attr!s}\n"
+            f"at={int(self.at)}, {self.at!s}\n"
+            f"length={int(self.length)}, {self.length}\n"
+            f"completer_id={int(self.completer_id)}, {self.completer_id!r}\n"
+            f"status={int(self.status)}, {self.status!s}\n"
+            f"bcm={int(self.bcm)}, {self.bcm}\n"
+            f"byte_count={int(self.byte_count)}, {self.byte_count}\n"
+            f"requester_id={int(self.requester_id)}, {self.requester_id!r}\n"
+            f"tag={int(self.tag)}, {self.tag}\n"
+            f"first_be={int(self.first_be)}, {self.first_be:#x}\n"
+            f"last_be={int(self.last_be)}, {self.last_be:#x}\n"
+            f"lower_address={int(self.lower_address)}, {self.lower_address:#x}\n"
+            f"address={int(self.address)}, {self.address:#x}\n"
+            f"ph={int(self.ph)}, {self.ph}\n"
+            f"seq={int(self.seq)}), {self.seq})\n"
+        )
+
 
     def __bytes__(self):
         return self.pack()

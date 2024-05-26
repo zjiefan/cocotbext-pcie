@@ -23,9 +23,13 @@ THE SOFTWARE.
 """
 
 import logging
+from typing import List
 
 from cocotb.queue import Queue
 from cocotb.triggers import Event, Timer, First
+from cocotb.utils import get_sim_time
+from cocotb.xt_printer import xt_print
+from dpkt import hexdump
 
 from cocotbext.axi import AddressSpace
 
@@ -36,7 +40,6 @@ from .region import MemoryTlpRegion, IoTlpRegion
 from .switch import Switch
 from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
 from .utils import PcieId
-from .pci import PciDevice, PciHostBridge
 
 
 class RootComplex(Switch):
@@ -64,13 +67,14 @@ class RootComplex(Switch):
 
         self.downstream_tag_recv_queues = {}
 
-        self.rx_cpl_queues = [Queue() for k in range(256)]
+        self.rx_cpl_queues: List[Queue[Tlp]] = [Queue() for k in range(256)]
         self.rx_cpl_sync = [Event() for k in range(256)]
 
         self.rx_tlp_handler = {}
 
         self.upstream_bridge.upstream_tx_handler = self.downstream_recv
 
+        from .pci import PciHostBridge
         self.host_bridge = PciHostBridge(rc=self)
 
         self.io_base = 0x8000_0000
@@ -205,7 +209,7 @@ class RootComplex(Switch):
         assert tlp.check()
         await self.handle_tlp(tlp)
 
-    async def handle_tlp(self, tlp):
+    async def handle_tlp(self, tlp: Tlp):
         if tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             self.rx_cpl_queues[tlp.tag].put_nowait(tlp)
             self.rx_cpl_sync[tlp.tag].set()
@@ -264,7 +268,7 @@ class RootComplex(Switch):
     async def perform_posted_operation(self, req):
         await self.send(req)
 
-    async def perform_nonposted_operation(self, req, timeout=0, timeout_unit='ns'):
+    async def perform_nonposted_operation(self, req: Tlp, timeout=0, timeout_unit='ns'):
         completions = []
 
         req.tag = await self.alloc_tag()
@@ -576,6 +580,9 @@ class RootComplex(Switch):
             byte_length = min(length-n, 4-first_pad)
             req.set_addr_be(addr, byte_length)
 
+            req_msg = req.pack()
+            # xt_print(f"n={n}, request message:\n{req.to_str()}\n{hexdump(req_msg)}")
+
             cpl_list = await self.perform_nonposted_operation(req, timeout, timeout_unit)
 
             if not cpl_list:
@@ -867,6 +874,19 @@ class RootComplex(Switch):
     async def enumerate(self, timeout=1000, timeout_unit='ns'):
         self.log.info("Enumerating bus")
 
+
+        xt_print(f"sim_time: {get_sim_time('ns')}")
+        xt_print(f"self.max_payload_size={self.max_payload_size}")
+        xt_print(f"self.max_payload_size_supported={self.max_payload_size_supported}")
+        xt_print(f"self.max_read_request_size={self.max_read_request_size}")
+        xt_print(f"self.io_base={self.io_base:016x}")
+        xt_print(f"self.io_limit={self.io_limit:016x}")
+        xt_print(f"self.mem_base={self.mem_base:016x}")
+        xt_print(f"self.mem_limit={self.mem_limit:016x}")
+        xt_print(f"self.prefetchable_mem_base={self.prefetchable_mem_base:016x}")
+        xt_print(f"self.prefetchable_mem_base={self.prefetchable_mem_base:016x}")
+
+
         self.host_bridge.max_payload_size = self.max_payload_size
         self.host_bridge.max_payload_size_supported = self.max_payload_size_supported
         self.host_bridge.max_read_request_size = self.max_read_request_size
@@ -886,6 +906,15 @@ class RootComplex(Switch):
         self.mem_limit = self.host_bridge.mem_limit
         self.prefetchable_mem_base = self.host_bridge.prefetchable_mem_base
         self.prefetchable_mem_limit = self.host_bridge.prefetchable_mem_limit
+
+        xt_print(f"after probe: sim_time: {get_sim_time('ns')}")
+        xt_print(f"self.io_base={self.io_base:016x}")
+        xt_print(f"self.io_limit={self.io_limit:016x}")
+        xt_print(f"self.mem_base={self.mem_base:016x}")
+        xt_print(f"self.mem_limit={self.mem_limit:016x}")
+        xt_print(f"self.prefetchable_mem_base={self.prefetchable_mem_base:016x}")
+        xt_print(f"self.prefetchable_mem_base={self.prefetchable_mem_base:016x}")
+
 
         self.upstream_bridge.io_base = self.io_base
         self.upstream_bridge.io_limit = self.io_limit
