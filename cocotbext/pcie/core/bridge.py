@@ -22,6 +22,8 @@ THE SOFTWARE.
 
 """
 
+from cocotb.xt_printer import xt_print
+
 from .function import Function
 from .port import SimPort
 from .tlp import Tlp, TlpType, CplStatus
@@ -30,8 +32,8 @@ from .utils import byte_mask_update, PcieId
 
 class Bridge(Function):
     """PCIe bridge function, implements bridge config space and TLP routing"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
 
         # configuration registers
         # Header type
@@ -276,7 +278,7 @@ class Bridge(Function):
         else:
             await super().write_config_register(reg, data, mask)
 
-    def match_tlp_secondary(self, tlp):
+    def match_tlp_secondary(self, tlp: Tlp):
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # Config type 0
             return False
@@ -320,7 +322,7 @@ class Bridge(Function):
             raise Exception("Transmit handler not set")
         await self.upstream_tx_handler(tlp)
 
-    async def upstream_recv(self, tlp):
+    async def upstream_recv(self, tlp: Tlp):
         self.log.debug("Routing downstream TLP: %r", tlp)
         assert tlp.check()
         if self.parity_error_response_enable and tlp.ep:
@@ -341,6 +343,7 @@ class Bridge(Function):
 
         # Route TLPs from primary side to secondary side
         if self.match_tlp_secondary(tlp):
+            # xt_print(f"Bridge route downstream TLP to secondary side: {tlp.fmt_type}, dst={tlp.completer_id}, bus within ({self.sec_bus_num},{self.sub_bus_num})")
 
             if tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1} and tlp.completer_id.bus == self.sec_bus_num:
                 # config type 1 targeted to directly connected device; change to type 0
@@ -385,13 +388,15 @@ class Bridge(Function):
     async def route_downstream_tlp(self, tlp, from_downstream=False):
         await self.downstream_send(tlp)
 
-    async def downstream_send(self, tlp):
+    async def downstream_send(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
         assert tlp.check()
         if self.bridge_parity_error_response_enable and tlp.ep:
             self.log.warning("Sending poisoned TLP on secondary interface, reporting master data parity error")
             self.sec_master_data_parity_error = True
         if self.downstream_tx_handler is None:
             raise Exception("Transmit handler not set")
+        xt_print(f"bridge send to downstream_tx_handler={self.downstream_tx_handler}")
         await self.downstream_tx_handler(tlp)
 
     async def downstream_recv(self, tlp):
@@ -447,7 +452,8 @@ class Bridge(Function):
         self.log.debug("UR Completion: %r", cpl)
         await self.downstream_send(cpl)
 
-    async def send(self, tlp):
+    async def send(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
         # route local transmissions
         if self.match_tlp_secondary(tlp):
             if tlp.is_completion() and tlp.status == CplStatus.CA:
@@ -486,8 +492,8 @@ class SwitchUpstreamPort(Bridge):
 
 
 class SwitchDownstreamPort(Bridge):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
 
         self.pcie_cap.pcie_device_type = 0x6
 
@@ -496,13 +502,14 @@ class SwitchDownstreamPort(Bridge):
 
         self.downstream_port = None
         self.downstream_tx_handler = None
-        self.set_downstream_port(SimPort(fc_init=[[64, 1024, 64, 64, 64, 1024]]*8))
+        self.set_downstream_port(SimPort(self.name, fc_init=[[64, 1024, 64, 64, 64, 1024]]*8))
 
-    def set_downstream_port(self, port):
+    def set_downstream_port(self, port: SimPort):
         port.log = self.log
         port.parent = self
         port.rx_handler = self.downstream_recv
         self.downstream_port = port
+        assert isinstance(port, SimPort)
         self.downstream_tx_handler = port.send
 
     def connect(self, port):
@@ -510,8 +517,8 @@ class SwitchDownstreamPort(Bridge):
 
 
 class HostBridge(Bridge):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
 
         self.pcie_cap.pcie_device_type = 0x5
 
@@ -528,8 +535,8 @@ class HostBridge(Bridge):
 
 
 class RootPort(SwitchDownstreamPort):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
 
         self.pcie_cap.pcie_device_type = 0x4
         self.pcie_cap.crs_software_visibility = True

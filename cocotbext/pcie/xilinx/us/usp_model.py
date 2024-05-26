@@ -28,6 +28,7 @@ import cocotb
 from cocotb.clock import Clock
 from cocotb.queue import Queue
 from cocotb.triggers import RisingEdge, FallingEdge, Timer, First, Event
+from cocotb.xt_printer import xt_print
 
 from cocotbext.pcie.core import Device, Endpoint, __version__
 from cocotbext.pcie.core.caps import MsiCapability, MsixCapability
@@ -109,8 +110,8 @@ class LocalError(enum.IntEnum):
 
 
 class UltraScalePlusPcieFunction(Endpoint):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
 
         # PCIe capabilities
         self.register_capability(self.pm_cap, offset=0x10)
@@ -369,7 +370,9 @@ class UltraScalePlusPcieDevice(Device):
 
             *args, **kwargs):
 
-        super().__init__(*args, **kwargs)
+        xt_print("Create a UltraScalePlusPcieDevice device")
+        super().__init__("TheUltraScalePlusPcieDevice", *args, **kwargs)
+
 
         self.log.info("Xilinx UltraScale+ PCIe hard IP core model")
         self.log.info("cocotbext-pcie version %s", __version__)
@@ -792,7 +795,8 @@ class UltraScalePlusPcieDevice(Device):
 
         # configure functions
 
-        self.make_function()
+        xt_print("Create a UltraScalePlusPcieDevice Function")
+        self.make_function("TheUltraScalePlusPcieDeviceFunction")
 
         if self.pf0_msi_enable:
             self.functions[0].msi_cap.msi_multiple_message_capable = (self.pf0_msi_count-1).bit_length()

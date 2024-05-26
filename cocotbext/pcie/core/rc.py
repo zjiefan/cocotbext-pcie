@@ -48,7 +48,7 @@ class RootComplex(Switch):
         self.default_upstream_bridge = HostBridge
         self.default_downstream_bridge = RootPort
 
-        super().__init__(*args, **kwargs)
+        super().__init__("RootComplex", *args, **kwargs)
 
         self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
         self.log.name = f"cocotb.pcie.{type(self).__name__}"
@@ -196,7 +196,7 @@ class RootComplex(Switch):
     async def write_io_region(self, addr, data):
         await self.io_region.write(addr, data)
 
-    async def downstream_send(self, tlp):
+    async def downstream_send(self, tlp: Tlp):
         self.log.debug("Sending TLP: %r", tlp)
         assert tlp.check()
         await self.upstream_bridge.upstream_recv(tlp)

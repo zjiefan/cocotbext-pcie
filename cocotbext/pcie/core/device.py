@@ -24,6 +24,8 @@ THE SOFTWARE.
 
 import logging
 
+from cocotb.xt_printer import xt_print
+
 from .endpoint import Endpoint
 from .port import SimPort
 from .tlp import Tlp, TlpType
@@ -32,7 +34,9 @@ from .utils import PcieId
 
 class Device:
     """PCIe device, container for multiple functions"""
-    def __init__(self, eps=None, *args, **kwargs):
+    def __init__(self, name, eps=None, *args, **kwargs):
+
+        self.name = name
 
         self._bus_num = 0
 
@@ -44,7 +48,8 @@ class Device:
         self.functions = []
         self.upstream_port = None
 
-        self.set_port(SimPort(fc_init=[[64, 1024, 64, 64, 0, 0]]*8))
+        xt_print(f"Create PCIe port for {self.name}")
+        self.set_port(SimPort(f"{self.name}PCIe", fc_init=[[64, 1024, 64, 64, 0, 0]]*8))
 
         if eps:
             try:
@@ -97,8 +102,8 @@ class Device:
         function.pcie_id = PcieId(self.bus_num, 0, self.next_free_function_number())
         return self.add_function(function)
 
-    def make_function(self):
-        return self.append_function(self.default_function())
+    def make_function(self, name):
+        return self.append_function(self.default_function(name))
 
     def set_port(self, port):
         port.log = self.log

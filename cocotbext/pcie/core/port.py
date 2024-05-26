@@ -29,6 +29,7 @@ import cocotb
 from cocotb.queue import Queue
 from cocotb.triggers import Event, First, Timer, NullTrigger
 from cocotb.utils import get_sim_time, get_sim_steps
+from cocotb.xt_printer import xt_print
 
 from .dllp import Dllp, DllpType, FcType
 from .tlp import Tlp
@@ -365,7 +366,9 @@ class FcChannelState:
 
 class Port:
     """Base port"""
-    def __init__(self, fc_init=[[0]*6]*8, *args, **kwargs):
+    def __init__(self, name, fc_init=[[0]*6]*8, *args, **kwargs):
+        xt_print(f"Create Port {name}")
+        self.name = name
         self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
         self.log.name = f"cocotb.pcie.{type(self).__name__}"
 
@@ -375,7 +378,7 @@ class Port:
         self.max_link_speed = None
         self.max_link_width = None
 
-        self.tx_queue = Queue(1)
+        self.tx_queue: Queue[Tlp] = Queue(1)
         self.tx_queue_sync = Event()
 
         self.rx_queue = Queue()
@@ -429,10 +432,13 @@ class Port:
     def classify_tlp_vc(self, tlp):
         return 0
 
-    async def send(self, pkt):
+    async def send(self, pkt: Tlp):
+        xt_print("SimPort send is called")
         pkt.release_fc()
         await self.fc_state[self.classify_tlp_vc(pkt)].tx_tlp_fc_gate(pkt)
+        assert isinstance(pkt, Tlp)
         await self.tx_queue.put(pkt)
+        xt_print(f"SimPort put a tlp msg to tx_queue, self={self},parent {self.parent}")
         self.tx_queue_sync.set()
 
     async def _run_transmit(self):
@@ -533,12 +539,20 @@ class Port:
                 self.log.debug("Send DLLP %s", pkt)
             elif not self.tx_queue.empty():
                 pkt = self.tx_queue.get_nowait()
+                xt_print(f"pop pkt from tx_queue, type={type(pkt)}")
                 pkt.seq = self.next_transmit_seq
                 self.log.debug("Send TLP %s", pkt)
                 self.next_transmit_seq = (self.next_transmit_seq + 1) & 0xfff
                 self.retry_buffer.put_nowait(pkt)
 
             if pkt:
+                if isinstance(pkt, Dllp):
+                    xt_print(f"SimPort {self.name} send Dllp msg in {pkt.type.name}")
+                else:
+                    assert isinstance(pkt, Tlp)
+                    xt_print(f"SimPort {self.name} send Tlp msg in {pkt.fmt_type}")
+
+                # xt_print(f"SimPort handle:\n{pkt.to_str()}")
                 await self.handle_tx(pkt)
 
     async def handle_tx(self, pkt):
@@ -649,8 +663,8 @@ class Port:
 
 class SimPort(Port):
     """Port to interconnect simulated PCIe devices"""
-    def __init__(self, fc_init=[[0]*6]*8, *args, **kwargs):
-        super().__init__(*args, fc_init, **kwargs)
+    def __init__(self, name, fc_init=[[0]*6]*8, *args, **kwargs):
+        super().__init__(name, *args, fc_init, **kwargs)
 
         self.other = None
 
