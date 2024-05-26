@@ -29,13 +29,14 @@ from cocotb.queue import Queue
 from cocotb.triggers import Event
 from cocotb.xt_printer import xt_print
 
-from .bridge import RootPort, SwitchUpstreamPort, SwitchDownstreamPort
+from .bridge import Bridge, RootPort, SwitchUpstreamPort, SwitchDownstreamPort
 from .tlp import Tlp, TlpType
 from .utils import PcieId
 
 
 class SwitchPort:
-    def __init__(self, bridge):
+    def __init__(self, bridge: Bridge):
+        assert isinstance(bridge, Bridge)
         self.bridge = bridge
         self.upstream = False
 
@@ -48,9 +49,10 @@ class SwitchPort:
         self.tx_handler = None
 
     @classmethod
-    def upstream(cls, bridge):
+    def upstream(cls, bridge: Bridge):
         port = cls(bridge)
         port.upstream = True
+        bridge.downstream_tx_name = f"{port.bridge.name}_upstream_port.ingress_queue"
         bridge.downstream_tx_handler = port.ingress_queue.put
         port.tx_handler = bridge.downstream_recv
         return port
@@ -145,8 +147,10 @@ class Switch:
         bridge.sub_bus_num = 0
         return self.add_endpoint(bridge)
 
-    def set_upstream_bridge(self, bridge):
+    def set_upstream_bridge(self, bridge: Bridge):
+        assert isinstance(bridge, Bridge)
         self.upstream_bridge = bridge
+        bridge.downstream_tx_name = f"{self.upstream_port.name}.ingress_queue"
         bridge.downstream_tx_handler = self.upstream_port.ingress_queue.put
         self.upstream_port.tx_handler = bridge.downstream_recv
 

@@ -438,7 +438,7 @@ class Port:
         await self.fc_state[self.classify_tlp_vc(pkt)].tx_tlp_fc_gate(pkt)
         assert isinstance(pkt, Tlp)
         await self.tx_queue.put(pkt)
-        xt_print(f"SimPort put a tlp msg to tx_queue, self={self},parent {self.parent}")
+        xt_print(f"Port {self.name} put a tlp msg to tx_queue")
         self.tx_queue_sync.set()
 
     async def _run_transmit(self):
@@ -539,7 +539,7 @@ class Port:
                 self.log.debug("Send DLLP %s", pkt)
             elif not self.tx_queue.empty():
                 pkt = self.tx_queue.get_nowait()
-                xt_print(f"pop pkt from tx_queue, type={type(pkt)}")
+                xt_print(f"Port {self.name} pop pkt from tx_queue, type={type(pkt).__name__}")
                 pkt.seq = self.next_transmit_seq
                 self.log.debug("Send TLP %s", pkt)
                 self.next_transmit_seq = (self.next_transmit_seq + 1) & 0xfff
@@ -547,10 +547,10 @@ class Port:
 
             if pkt:
                 if isinstance(pkt, Dllp):
-                    xt_print(f"SimPort {self.name} send Dllp msg in {pkt.type.name}")
+                    xt_print(f"Port {self.name} send Dllp msg in {pkt.type.name}")
                 else:
                     assert isinstance(pkt, Tlp)
-                    xt_print(f"SimPort {self.name} send Tlp msg in {pkt.fmt_type}")
+                    xt_print(f"Port {self.name} send Tlp msg in {pkt.fmt_type}")
 
                 # xt_print(f"SimPort handle:\n{pkt.to_str()}")
                 await self.handle_tx(pkt)
