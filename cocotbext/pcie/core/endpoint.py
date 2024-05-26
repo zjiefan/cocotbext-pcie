@@ -32,8 +32,8 @@ from .utils import byte_mask_update
 
 class Endpoint(Function):
     """PCIe endpoint function, implements endpoint config space"""
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(name, *args, **kwargs)
 
         # configuration registers
         self.header_type = 0

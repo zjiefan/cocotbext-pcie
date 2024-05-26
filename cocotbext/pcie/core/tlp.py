@@ -21,6 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 """
+from __future__ import annotations
 
 import enum
 import struct
@@ -301,7 +302,7 @@ class Tlp:
         return ret
 
     @classmethod
-    def create_completion_for_tlp(cls, tlp, completer_id, has_data=False, status=CplStatus.SC):
+    def create_completion_for_tlp(cls, tlp: Tlp, completer_id, has_data=False, status=CplStatus.SC):
         """Prepare completion for TLP"""
         cpl = cls()
         if has_data:

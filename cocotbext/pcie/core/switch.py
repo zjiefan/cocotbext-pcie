@@ -27,8 +27,9 @@ import logging
 import cocotb
 from cocotb.queue import Queue
 from cocotb.triggers import Event
+from cocotb.xt_printer import xt_print
 
-from .bridge import SwitchUpstreamPort, SwitchDownstreamPort
+from .bridge import RootPort, SwitchUpstreamPort, SwitchDownstreamPort
 from .tlp import Tlp, TlpType
 from .utils import PcieId
 
@@ -65,19 +66,24 @@ class SwitchPort:
 
 class Switch:
     """Switch object, container for switch bridges and associated interconnect"""
-    def __init__(self, *args, **kwargs):
+    def __init__(self, name, *args, **kwargs):
         self.__dict__.setdefault('default_upstream_bridge', SwitchUpstreamPort)
         self.__dict__.setdefault('default_downstream_bridge', SwitchDownstreamPort)
 
         super().__init__(*args, **kwargs)
+        xt_print(f"Create Switch {name}")
+        self.name = name
 
         self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
         self.log.name = f"cocotb.pcie.{type(self).__name__}"
 
         self.switch_ports = []
 
-        self.upstream_bridge = self.default_upstream_bridge()
-        self.upstream_port = SwitchPort.upstream(self.upstream_bridge)
+        from cocotbext.pcie.core.bridge import HostBridge
+        from cocotbext.pcie.core.switch import SwitchPort
+        assert self.default_upstream_bridge == HostBridge
+        self.upstream_bridge: HostBridge = self.default_upstream_bridge("TheHostBridge")
+        self.upstream_port: SwitchPort = SwitchPort.upstream(self.upstream_bridge)
         self.add_switch_port(self.upstream_port)
 
         self.min_dev = 1
@@ -124,7 +130,9 @@ class Switch:
 
     def make_port(self, bridge=None, port=None):
         if bridge is None:
-            bridge = self.default_downstream_bridge()
+            assert self.default_downstream_bridge == RootPort
+            xt_print(f"Create RootPort for {self.name}")
+            bridge = self.default_downstream_bridge("RootPort")
 
             # transfer configuration from upstream bridge
             bridge.pcie_cap.max_payload_size_supported = self.upstream_bridge.pcie_cap.max_payload_size_supported

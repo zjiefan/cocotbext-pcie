@@ -39,7 +39,8 @@ from .utils import PcieId
 
 class Function:
     """PCIe function, implements config TLP handling"""
-    def __init__(self, *args, **kwargs):
+    def __init__(self, name, *args, **kwargs):
+        self.name = name
         self._pcie_id = PcieId()
 
         self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
