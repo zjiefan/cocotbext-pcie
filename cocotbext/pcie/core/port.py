@@ -21,18 +21,21 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 """
+from __future__ import annotations
 
 from functools import partial
 import logging
+from typing import Dict, Optional, Union
 
 import cocotb
 from cocotb.queue import Queue
 from cocotb.triggers import Event, First, Timer, NullTrigger
 from cocotb.utils import get_sim_time, get_sim_steps
 from cocotb.xt_printer import xt_print
+from collections import Counter
 
 from .dllp import Dllp, DllpType, FcType
-from .tlp import Tlp
+from .tlp import Tlp, TlpType
 
 PCIE_GEN_RATE = {
     1: 2.5e9*8/10,
@@ -50,6 +53,11 @@ PCIE_GEN_SYMB_TIME = {
     5: 8/PCIE_GEN_RATE[5],
 }
 
+tlp_type_cnts: Dict[TlpType, int] = {}
+
+msg_cnts: Counter[int, int] = Counter()
+TLP_CNT = 0
+DLLP_CNT = 1
 
 def get_update_factor(max_payload_size, link_width):
     if max_payload_size <= 256:
@@ -159,7 +167,8 @@ class FcStateHeader(FcStateData):
 
 
 class FcChannelState:
-    def __init__(self, init=[0]*6, start_fc_update_timer=None):
+    def __init__(self, name, init=[0]*6, start_fc_update_timer=None):
+        self.name = name
         self.ph = FcStateHeader(init[0])
         self.pd = FcStateData(init[1])
         self.nph = FcStateHeader(init[2])
@@ -261,7 +270,8 @@ class FcChannelState:
             self.cplh.rx_consume_fc(1)
             self.cpld.rx_consume_fc(dc)
 
-    def rx_consume_tlp_fc(self, tlp):
+    def rx_consume_tlp_fc(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
         self.rx_consume_fc(tlp.get_fc_type(), tlp.get_data_credits())
 
     def rx_release_fc(self, credit_type, dc=0):
@@ -283,11 +293,16 @@ class FcChannelState:
         self.rx_release_fc(tlp.get_fc_type(), tlp.get_data_credits())
 
     def rx_release_fc_token(self, token):
+        xt_print(f"{self.name} rx_release_fc_token")
         if token in self.rx_release_fc_dict:
             credit_type, dc = self.rx_release_fc_dict.pop(token)
             self.rx_release_fc(credit_type, dc)
 
-    def rx_set_tlp_release_fc_cb(self, tlp):
+    def rx_set_tlp_release_fc_cb(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
+        xt_print(f"{self.name} rx_set_tlp_release_fc_cb")
+        # if self.name == "TheUltraScalePlusPcieDevicePCIe":
+        #     assert False
         credit_type = tlp.get_fc_type()
         dc = tlp.get_data_credits()
         token = object()
@@ -409,7 +424,7 @@ class Port:
         # Flow control
         self.send_fc = Event()
 
-        self.fc_state = [FcChannelState(fc_init[k], self.start_fc_update_timer) for k in range(8)]
+        self.fc_state = [FcChannelState(self.name, fc_init[k], self.start_fc_update_timer) for k in range(8)]
 
         self.fc_initialized = False
         self.fc_init_vc = 0
@@ -433,7 +448,6 @@ class Port:
         return 0
 
     async def send(self, pkt: Tlp):
-        xt_print("SimPort send is called")
         pkt.release_fc()
         await self.fc_state[self.classify_tlp_vc(pkt)].tx_tlp_fc_gate(pkt)
         assert isinstance(pkt, Tlp)
@@ -547,10 +561,14 @@ class Port:
 
             if pkt:
                 if isinstance(pkt, Dllp):
-                    xt_print(f"Port {self.name} send Dllp msg in {pkt.type.name}")
+                    xt_print(f"Port {self.name} send Dllp msg, dllp_cnt={msg_cnts[DLLP_CNT]}:  {str(pkt)}")
+                    msg_cnts[DLLP_CNT] += 1
                 else:
                     assert isinstance(pkt, Tlp)
-                    xt_print(f"Port {self.name} send Tlp msg in {pkt.fmt_type}")
+                    cnt = tlp_type_cnts.get(pkt.fmt_type, 0)
+                    tlp_type_cnts[pkt.fmt_type] = cnt + 1
+                    xt_print(f"Port {self.name} send Tlp msg in {pkt.fmt_type}, No.{cnt}, types={len(tlp_type_cnts)},tlp_cnt={msg_cnts[TLP_CNT]}")
+                    msg_cnts[TLP_CNT] += 1
 
                 # xt_print(f"SimPort handle:\n{pkt.to_str()}")
                 await self.handle_tx(pkt)
@@ -558,20 +576,23 @@ class Port:
     async def handle_tx(self, pkt):
         raise NotImplementedError()
 
-    async def ext_recv(self, pkt):
+    async def ext_recv(self, pkt: Union[Dllp, Tlp]):
         if isinstance(pkt, Dllp):
             # DLLP
             self.log.debug("Receive DLLP %s", pkt)
             self.handle_dllp(pkt)
         else:
             # TLP
+            assert isinstance(pkt, Tlp)
             self.log.debug("Receive TLP %s", pkt)
+            xt_print(f"{self.name} received:\n{pkt.to_str()}")
             if pkt.seq == self.next_recv_seq:
                 # expected seq
                 self.next_recv_seq = (self.next_recv_seq + 1) & 0xfff
                 self.nak_scheduled = False
                 self.start_ack_latency_timer()
                 pkt = Tlp(pkt)
+
                 self.fc_state[self.classify_tlp_vc(pkt)].rx_process_tlp_fc(pkt)
                 self.rx_queue.put_nowait(pkt)
             elif (self.next_recv_seq - pkt.seq) & 0xfff < 2048:
@@ -640,6 +661,7 @@ class Port:
             self.send_ack.set()
 
     def start_fc_update_timer(self):
+        xt_print(f"{self.name} start_fc_update_timer is called")
         if self._fc_update_timer_cr is not None:
             if not self._fc_update_timer_cr.done():
                 # already running
@@ -652,6 +674,7 @@ class Port:
             self._fc_update_timer_cr = None
 
     async def _run_fc_update_timer(self):
+        xt_print(f"{self.name} _run_fc_update_timer is called for Timer {max(self.max_latency_timer_steps, 1)}")
         await Timer(max(self.max_latency_timer_steps, 1), 'step')
         self.send_fc.set()
 
@@ -666,7 +689,7 @@ class SimPort(Port):
     def __init__(self, name, fc_init=[[0]*6]*8, *args, **kwargs):
         super().__init__(name, *args, fc_init, **kwargs)
 
-        self.other = None
+        self.other: Optional[Port] = None
 
         self.port_delay = 5e-9
 
@@ -679,13 +702,16 @@ class SimPort(Port):
         else:
             other.connect(self)
 
-    def _connect(self, port):
+    def _connect(self, port: SimPort):
+        assert isinstance(port, SimPort), type(port)
         if self.other is not None:
             raise Exception("Already connected")
         port._connect_int(self)
         self._connect_int(port)
 
-    def _connect_int(self, port):
+    def _connect_int(self, port: SimPort):
+        assert isinstance(port, SimPort), type(port)
+        xt_print(f"_connect_int {self.name} to {port.name}")
         if self.other is not None:
             raise Exception("Already connected")
 
@@ -716,11 +742,11 @@ class SimPort(Port):
             self.max_latency_timer_steps = 0
             self.link_delay_steps = 0
 
-    async def handle_tx(self, pkt):
+    async def handle_tx(self, pkt: Union[Dllp, Tlp]):
         await Timer(max(int(pkt.get_wire_size() * self.symbol_period * self.time_scale), 1), 'step')
         cocotb.start_soon(self._transmit(pkt))
 
-    async def _transmit(self, pkt):
+    async def _transmit(self, pkt: Union[Dllp, Tlp]):
         if self.other is None:
             raise Exception("Port not connected")
         await Timer(max(self.link_delay_steps, 1), 'step')

@@ -915,8 +915,10 @@ class UltraScalePlusPcieDevice(Device):
         else:
             return self.active_request[0:32].count(None)
 
-    async def upstream_recv(self, tlp):
+    async def upstream_recv(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
         self.log.debug("Got downstream TLP: %r", tlp)
+        xt_print(f"usp receive tlp:\n{tlp.to_str()}")
 
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # config type 0
@@ -937,8 +939,11 @@ class UltraScalePlusPcieDevice(Device):
                 # pass TLP to function
                 for f in self.functions:
                     if f.pcie_id == tlp.completer_id:
+                        xt_print(f"Function {f.name} calling upstream_recv, class: {f.__class__.__name__}")
                         await f.upstream_recv(tlp)
                         return
+
+                xt_print("We didn't get here")
 
                 tlp.release_fc()
 

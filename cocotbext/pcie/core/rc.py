@@ -72,6 +72,7 @@ class RootComplex(Switch):
 
         self.rx_tlp_handler = {}
 
+        self.upstream_bridge.upstream_tx_name = f"RootComplex.downstream_recv"
         self.upstream_bridge.upstream_tx_handler = self.downstream_recv
 
         from .pci import PciHostBridge
@@ -199,6 +200,7 @@ class RootComplex(Switch):
     async def downstream_send(self, tlp: Tlp):
         self.log.debug("Sending TLP: %r", tlp)
         assert tlp.check()
+        xt_print(f"!!!!!! got here !!!!!!!! 1 {self.name}")
         await self.upstream_bridge.upstream_recv(tlp)
 
     async def send(self, tlp):
@@ -210,7 +212,9 @@ class RootComplex(Switch):
         await self.handle_tlp(tlp)
 
     async def handle_tlp(self, tlp: Tlp):
+        xt_print(f"!!!!!! got here !!!!!!!! 9 RootComplex handle_tlp")
         if tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
+            xt_print(f"!!!!!! got here !!!!!!!! 9+ {self.name} a {type(self).__name__} put in CLP rx_cpl_queues, {tlp.fmt_type}, tlp.tag={tlp.tag}")
             self.rx_cpl_queues[tlp.tag].put_nowait(tlp)
             self.rx_cpl_sync[tlp.tag].set()
         elif tlp.fmt_type in self.rx_tlp_handler:
@@ -223,13 +227,15 @@ class RootComplex(Switch):
     def register_rx_tlp_handler(self, fmt_type, func):
         self.rx_tlp_handler[fmt_type] = func
 
-    async def recv_cpl(self, tag, timeout=0, timeout_unit='ns'):
+    async def recv_cpl(self, tag: int, timeout=0, timeout_unit='ns'):
+        assert isinstance(tag, int)
         queue = self.rx_cpl_queues[tag]
         sync = self.rx_cpl_sync[tag]
 
         if not queue.empty():
             cpl = queue.get_nowait()
             cpl.release_fc()
+            xt_print(f"!!!!!! got here !!!!!!!! 10 {self.name} a {type(self).__name__} recv_cpl, {cpl.fmt_type}, tlp.tag={tag}")
             return cpl
 
         sync.clear()
@@ -241,6 +247,7 @@ class RootComplex(Switch):
         if not queue.empty():
             cpl = queue.get_nowait()
             cpl.release_fc()
+            xt_print(f"!!!!!! got here !!!!!!!! 10+ {self.name} a {type(self).__name__} recv_cpl, {cpl.fmt_type}, tlp.tag={tag}")
             return cpl
 
         return None
@@ -269,7 +276,7 @@ class RootComplex(Switch):
         await self.send(req)
 
     async def perform_nonposted_operation(self, req: Tlp, timeout=0, timeout_unit='ns'):
-        completions = []
+        completions: List[Tlp] = []
 
         req.tag = await self.alloc_tag()
 
@@ -277,10 +284,13 @@ class RootComplex(Switch):
 
         while True:
             cpl = await self.recv_cpl(req.tag, timeout, timeout_unit)
+            xt_print(f"!!!!!! got here !!!!!!!! 11 {self.name} a {type(self).__name__} received cpl, {cpl.fmt_type}, tlp.tag={req.tag}:\n{cpl.to_str()}")
 
             if not cpl:
                 break
 
+
+            assert isinstance(cpl, Tlp)
             completions.append(cpl)
 
             if cpl.status != CplStatus.SC:
@@ -567,6 +577,7 @@ class RootComplex(Switch):
         # memory writes are posted, so don't send a completion
 
     async def config_read(self, dev, addr, length, timeout=0, timeout_unit='ns'):
+        xt_print(f"got here config_read {self.name} read {dev}, 0x{addr:x}, length={length}")
         n = 0
         data = bytearray()
 
@@ -580,9 +591,8 @@ class RootComplex(Switch):
             byte_length = min(length-n, 4-first_pad)
             req.set_addr_be(addr, byte_length)
 
-            req_msg = req.pack()
+            # req_msg = req.pack()
             # xt_print(f"n={n}, request message:\n{req.to_str()}\n{hexdump(req_msg)}")
-
             cpl_list = await self.perform_nonposted_operation(req, timeout, timeout_unit)
 
             if not cpl_list:
@@ -607,6 +617,7 @@ class RootComplex(Switch):
             n += byte_length
             addr += byte_length
 
+        xt_print(f"got here result {self.name} config_read {dev}, 0x{addr:x}, length={length}: {hexdump(data[:length])}")
         return data[:length]
 
     async def config_read_words(self, dev, addr, count, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):

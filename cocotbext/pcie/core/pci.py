@@ -23,7 +23,7 @@ THE SOFTWARE.
 """
 
 import struct
-from typing import Optional
+from typing import List, Optional
 
 from cocotb.triggers import Timer
 from cocotb.xt_printer import xt_print
@@ -94,7 +94,7 @@ class PciBus:
         # child buses
         self.children = []
         # devices on this bus
-        self.devices = []
+        self.devices: List[PciDevice] = []
 
         # bridge device
         self.bridge = bridge
@@ -154,6 +154,8 @@ class PciBus:
         first_bus = self.bus_num
         last_bus = first_bus
 
+        xt_print(f"scan self.bus_num={self.bus_num}")
+
         # scan for devices
         for d in range(32):
             if self.bus_num == 0 and d == 0:
@@ -165,14 +167,17 @@ class PciBus:
 
             # read vendor ID and device ID
             # xt_print(f"reading at {get_sim_time('ns')}")
+            xt_print(f"try read configuration dev_id={dev_id}, 0x000")
             val = await self.rc.config_read_dword(dev_id, 0x000, 'little', timeout, timeout_unit)
             # xt_print(f"reading end at {get_sim_time('ns')}")
 
-
+            xt_print(f"-------- result: read configuration dev_id={dev_id}, 0x000:  {val:08x} --------")
             if val in {0, 0xffffffff, 0xffff0000, 0x0000ffff}:
+                xt_print(f"No device at ({dev_id})")
                 continue
 
             if val == 0xffff0001:
+                xt_print(f"Wait device ({dev_id}) to be ready")
                 if not await self.wait_crs(dev_id, timeout, timeout_unit):
                     continue
 
@@ -184,7 +189,7 @@ class PciBus:
 
                 # read vendor ID and device ID
                 val = await self.rc.config_read_dword(dev_id, 0x000, 'little', timeout, timeout_unit)
-                xt_print(f"read configuration dev_id={dev_id}:\n{val:08x}")
+                xt_print(f"read configuration dev_id={dev_id}, 0x000:  {val:08x}")
 
                 if val is None or val == 0xffffffff:
                     continue
@@ -307,7 +312,8 @@ class PciBus:
 
 
 class PciDevice:
-    def __init__(self, bus, rc=None):
+    def __init__(self, bus: PciBus, rc=None):
+        assert isinstance(bus, PciBus)
         self.rc = rc
         self._pcie_id = PcieId()
 
@@ -368,7 +374,9 @@ class PciDevice:
         return self._pcie_id
 
     @pcie_id.setter
-    def pcie_id(self, val):
+    def pcie_id(self, val: PcieId):
+        assert isinstance(val, PcieId)
+        xt_print(f"Setting PcieId to {str(val)}")
         self._pcie_id = PcieId(val)
 
     @property

@@ -21,12 +21,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 """
+from __future__ import annotations
 
 import logging
 import struct
+from typing import Dict, List
 
 from cocotb.queue import Queue
 from cocotb.triggers import Event, Timer, First
+from cocotb.xt_printer import xt_print
 
 from cocotbext.axi import AddressSpace
 
@@ -54,7 +57,7 @@ class Function:
         self.tag_active = [False]*256
         self.tag_release = Event()
 
-        self.rx_cpl_queues = [Queue() for k in range(256)]
+        self.rx_cpl_queues: List[Queue[Tlp]] = [Queue() for k in range(256)]
         self.rx_cpl_sync = [Event() for k in range(256)]
 
         self.rx_tlp_handler = {}
@@ -398,22 +401,31 @@ class Function:
     def match_io_bar(self, addr):
         return self.match_bar(addr, io=True)
 
-    def match_tlp(self, tlp):
+    def match_tlp(self, tlp: Tlp):
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
             # Config type 0
-            return self.device_num == tlp.completer_id.device and self.function_num == tlp.completer_id.function
+            match = self.device_num == tlp.completer_id.device and self.function_num == tlp.completer_id.function
+            xt_print(f"match: {match}   as CFG_0 {tlp.fmt_type}, completer_id=({tlp.completer_id}), device_num={self.device_num},function_num={self.function_num},unused pcie_id=({self.pcie_id}) {self.name}")
+            return match
         elif tlp.fmt_type in {TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # Config type 1
+            xt_print(f"match: False   (as CFG_1 {tlp.fmt_type}) {self.name}")
             return False
         elif tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # Completion
-            return self.pcie_id == tlp.requester_id
+            match = self.pcie_id == tlp.requester_id
+            xt_print(f"match: {match}   (as CFG_0 {tlp.fmt_type}, requester_id={tlp.requester_id}),pcie_id=({self.pcie_id}),unused device_num={self.device_num},function_num={self.function_num} {self.name}")
+            return match
         elif tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE}:
             # IO read/write
-            return bool(self.match_bar(tlp.address, True))
+            match = bool(self.match_bar(tlp.address, True))
+            xt_print(f"match: {match}   (as IO {tlp.fmt_type}, tlp.addr={tlp.address:x}),unused pcie_id=({self.pcie_id}),device_num={self.device_num},function_num={self.function_num} {self.name}")
+            return match
         elif tlp.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_WRITE, TlpType.MEM_WRITE_64}:
             # Memory read/write
-            return bool(self.match_bar(tlp.address))
+            match = bool(self.match_bar(tlp.address))
+            xt_print(f"match: {match}   (as MEM {tlp.fmt_type}, tlp.addr={tlp.address:x}),unused completer_id=({tlp.completer_id}),pcie_id=({self.pcie_id}),device_num={self.device_num},function_num={self.function_num} {self.name}")
+            return match
         else:
             raise Exception("TODO")
         return False
@@ -434,7 +446,9 @@ class Function:
             self.signaled_target_abort = True
         await self.upstream_send(tlp)
 
-    async def upstream_recv(self, tlp):
+    async def upstream_recv(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
+        xt_print(f"basic function upstream_recv is called, name={self.name}")
         self.log.debug("Got downstream TLP: %r", tlp)
         assert tlp.check()
         if tlp.is_completion():
@@ -449,7 +463,9 @@ class Function:
             self.master_data_parity_error = True
         await self.handle_tlp(tlp)
 
-    async def handle_tlp(self, tlp):
+    async def handle_tlp(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
+        xt_print(f"basic function handle_tlp is called, name={self.name}")
         if tlp.fmt_type in {TlpType.CPL, TlpType.CPL_DATA, TlpType.CPL_LOCKED, TlpType.CPL_LOCKED_DATA}:
             # completion
             self.rx_cpl_queues[tlp.tag].put_nowait(tlp)
@@ -464,6 +480,7 @@ class Function:
             raise Exception("Unhandled TLP")
 
     def register_rx_tlp_handler(self, fmt_type, func):
+        xt_print(f"{self.name} function register rx tlp handler, type={fmt_type}, func={func}")
         self.rx_tlp_handler[fmt_type] = func
 
     async def recv_cpl(self, tag, timeout=0, timeout_unit='ns'):
@@ -511,7 +528,8 @@ class Function:
     async def perform_posted_operation(self, req):
         await self.send(req)
 
-    async def perform_nonposted_operation(self, req, timeout=0, timeout_unit='ns'):
+    async def perform_nonposted_operation(self, req: Tlp, timeout=0, timeout_unit='ns'):
+        assert isinstance(req, Tlp)
         completions = []
 
         req.tag = await self.alloc_tag()
@@ -548,9 +566,10 @@ class Function:
 
         return completions
 
-    async def handle_config_0_read_tlp(self, tlp):
+    async def handle_config_0_read_tlp(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
         if tlp.completer_id.device == self.device_num and tlp.completer_id.function == self.function_num:
-            self.log.info("Config type 0 read, reg 0x%03x", tlp.address >> 2)
+            self.log.info("%s Config type 0 read, reg 0x%03x, addr 0x%04x, handle_config_0_read_tlp", self.name, tlp.address >> 2, tlp.address)
 
             # capture address information
             if self.bus_num != tlp.completer_id.bus:
@@ -574,6 +593,7 @@ class Function:
             cpl = Tlp.create_ur_completion_for_tlp(tlp, self.pcie_id)
             self.log.debug("UR Completion: %r", cpl)
             await self.upstream_send(cpl)
+            assert False
 
     async def handle_config_0_write_tlp(self, tlp):
         if tlp.completer_id.device == self.device_num and tlp.completer_id.function == self.function_num:

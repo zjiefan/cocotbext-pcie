@@ -682,7 +682,7 @@ class Tlp:
             f"lower_address={int(self.lower_address)}, {self.lower_address:#x}\n"
             f"address={int(self.address)}, {self.address:#x}\n"
             f"ph={int(self.ph)}, {self.ph}\n"
-            f"seq={int(self.seq)}), {self.seq})\n"
+            f"seq={int(self.seq)}, {self.seq})\n"
         )
 
 

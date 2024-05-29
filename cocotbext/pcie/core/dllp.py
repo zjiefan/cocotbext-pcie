@@ -95,12 +95,12 @@ def crc16(data, crc=0xFFFF, poly=0xD008):
 
 class Dllp:
     def __init__(self, dllp=None):
-        self.type = DllpType.NOP
+        self.type: DllpType = DllpType.NOP
         self.seq = 0
         self.vc = 0
-        self.hdr_scale = FcScale(0)
+        self.hdr_scale:FcScale = FcScale(0)
         self.hdr_fc = 0
-        self.data_scale = FcScale(0)
+        self.data_scale:FcScale = FcScale(0)
         self.data_fc = 0
         self.feature_support = 0
         self.feature_ack = False
@@ -162,6 +162,7 @@ class Dllp:
             dw |= (self.hdr_fc & 0xff) << 14
             dw |= (self.hdr_scale & 0x3) << 22
         else:
+            print(self.type)
             raise Exception("TODO")
 
         return struct.pack('>L', dw)
@@ -236,15 +237,28 @@ class Dllp:
 
     def __repr__(self):
         return (
-            f"{type(self).__name__}(type={self.type!s}, "
+            f"{type(self).__name__}({self.type.name:13}, "
             f"seq={self.seq}, "
             f"vc={self.vc}, "
-            f"hdr_scale={self.hdr_scale!s}, "
-            f"hdr_fc={self.hdr_fc}, "
-            f"data_scale={self.data_scale!s}, "
-            f"data_fc={self.data_fc}, "
+            f"hdr_scale={self.hdr_scale.name}, "
+            f"hdr_fc={self.hdr_fc:2}, "
+            f"data_scale={self.data_scale.name}, "
+            f"data_fc={self.data_fc:4}, "
             f"feature_support={self.feature_support}, "
             f"feature_ack={self.feature_ack})"
+        )
+
+    def to_str(self):
+        return (
+            f"{type(self).__name__}({self.type.name}\n"
+            f"seq={self.seq}\n"
+            f"vc={self.vc}\n"
+            f"hdr_scale={self.hdr_scale.name}\n"
+            f"hdr_fc={self.hdr_fc}\n"
+            f"data_scale={self.data_scale.name}\n"
+            f"data_fc={self.data_fc}\n"
+            f"feature_support={self.feature_support}\n"
+            f"feature_ack={self.feature_ack})\n"
         )
 
     def __bytes__(self):

@@ -76,6 +76,7 @@ class Bridge(Function):
 
         self.root = False
 
+        self.upstream_tx_name = None
         self.upstream_tx_handler = None
         self.downstream_tx_name = None
         self.downstream_tx_handler = None
@@ -314,7 +315,9 @@ class Bridge(Function):
         else:
             raise Exception("Unknown/invalid packet type")
 
-    async def upstream_send(self, tlp):
+    async def upstream_send(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
+        xt_print(f"!!!!!! got here !!!!!!!! 8 {self.name} a {self.__class__.__name__} upstream_send {self.upstream_tx_name}")
         assert tlp.check()
         if self.parity_error_response_enable and tlp.ep:
             self.log.warning("Sending poisoned TLP on primary interface, reporting master data parity error")
@@ -325,6 +328,7 @@ class Bridge(Function):
 
     async def upstream_recv(self, tlp: Tlp):
         self.log.debug("Routing downstream TLP: %r", tlp)
+        xt_print(f"!!!!!! got here !!!!!!!! 2 {self.name}")
         assert tlp.check()
         if self.parity_error_response_enable and tlp.ep:
             self.log.warning("Received poisoned TLP on primary interface, reporting master data parity error")
@@ -397,11 +401,14 @@ class Bridge(Function):
             self.sec_master_data_parity_error = True
         if self.downstream_tx_handler is None:
             raise Exception("Transmit handler not set")
-        xt_print(f"bridge send to downstream_port={self.downstream_tx_name}")
+        # xt_print(f"bridge send to downstream_port={self.downstream_tx_name}")
+        xt_print(f"!!!!!! got here !!!!!!!! 3 {self.downstream_tx_name}")
         await self.downstream_tx_handler(tlp)
 
-    async def downstream_recv(self, tlp):
+    async def downstream_recv(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
         self.log.debug("Routing upstream TLP: %r", tlp)
+        xt_print(f"!!!!!! got here !!!!!!!! 7 {self.name} a {self.__class__.__name__} {str(self.pcie_id)} downstream_recv")
         assert tlp.check()
         if self.bridge_parity_error_response_enable and tlp.ep:
             self.log.warning("Received poisoned TLP on secondary interface, reporting master data parity error")
@@ -409,24 +416,30 @@ class Bridge(Function):
 
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # error
+            xt_print(f"!!!!!! got here !!!!!!!! 7+ CFG pass")
             pass
         elif not self.root and self.match_tlp(tlp):
+            xt_print(f"!!!!!! got here !!!!!!!! 7+ not root match tlp")
             # TLPs targeting bridge function
             if tlp.is_completion():
                 if tlp.status == CplStatus.CA:
+                    xt_print(f"!!!!!! got here !!!!!!!! 7+ CplStatus.CA")
                     self.log.warning("Received completion with CA status on secondary interface, reporting target abort")
                     self.sec_received_target_abort = True
                 elif tlp.status == CplStatus.UR:
+                    xt_print(f"!!!!!! got here !!!!!!!! 7+ CplStatus.UR")
                     self.log.warning("Received completion with UR status on secondary interface, reporting master abort")
                     self.sec_received_master_abort = True
             await self.handle_tlp(tlp)
             return
         elif not self.match_tlp_secondary(tlp) or self.root:
             # Route TLPs from secondary side to primary side
+            xt_print(f"!!!!!! got here !!!!!!!! 7+ root match match_tlp_secondary")
             await self.upstream_send(tlp)
             return
 
         tlp.release_fc()
+        xt_print(f"!!!!!! got here !!!!!!!! 7++ no match")
 
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0, TlpType.CFG_READ_1, TlpType.CFG_WRITE_1}:
             # Config type 1
