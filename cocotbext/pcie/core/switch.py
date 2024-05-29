@@ -23,6 +23,7 @@ THE SOFTWARE.
 """
 
 import logging
+from typing import List, Tuple
 
 import cocotb
 from cocotb.queue import Queue
@@ -37,32 +38,37 @@ from .utils import PcieId
 class SwitchPort:
     def __init__(self, bridge: Bridge):
         assert isinstance(bridge, Bridge)
+        self.name = f"{bridge.name}SwitchPort"
         self.bridge = bridge
-        self.upstream = False
+        self.is_upstream = False
 
         self.ingress_queue = Queue(1)
 
-        self.tx_queues = []
-        self.rx_queues = []
+        self.tx_queues: List[Tuple[SwitchPort, Queue]] = []
+        self.rx_queues: List[Queue] = []
         self.rx_event = Event()
 
         self.tx_handler = None
+        self.tx_handler_name = None
 
     @classmethod
     def upstream(cls, bridge: Bridge):
         port = cls(bridge)
-        port.upstream = True
-        bridge.downstream_tx_name = f"{port.bridge.name}_upstream_port.ingress_queue"
+        port.is_upstream = True
+        bridge.downstream_tx_name = f"SwitchPort to {port.bridge.name} downstream"
         bridge.downstream_tx_handler = port.ingress_queue.put
         port.tx_handler = bridge.downstream_recv
+        port.tx_handler_name = f"bridge.{bridge.name}.downstream_recv"
         return port
 
     @classmethod
     def downstream(cls, bridge):
+        assert isinstance(bridge, RootPort)
         port = cls(bridge)
-        port.upstream = False
+        port.is_upstream = False
         bridge.upstream_tx_handler = port.ingress_queue.put
         port.tx_handler = bridge.upstream_recv
+        port.tx_handler_name = f"bridge.{bridge.name}.upstream_recv"
         return port
 
 
@@ -79,13 +85,13 @@ class Switch:
         self.log = logging.getLogger(f"cocotb.pcie.{type(self).__name__}.{id(self)}")
         self.log.name = f"cocotb.pcie.{type(self).__name__}"
 
-        self.switch_ports = []
+        self.switch_ports: List[SwitchPort] = []
 
         from cocotbext.pcie.core.bridge import HostBridge
-        from cocotbext.pcie.core.switch import SwitchPort
         assert self.default_upstream_bridge == HostBridge
         self.upstream_bridge: HostBridge = self.default_upstream_bridge("TheHostBridge")
         self.upstream_port: SwitchPort = SwitchPort.upstream(self.upstream_bridge)
+        xt_print(f"Setting up Switch {self.name}, it upstream bridge is TheHostBridge")
         self.add_switch_port(self.upstream_port)
 
         self.min_dev = 1
@@ -120,7 +126,8 @@ class Switch:
             return d
         return None
 
-    def append_endpoint(self, ep):
+    def append_endpoint(self, ep: RootPort):
+        assert isinstance(ep, RootPort)
         self.add_switch_port(SwitchPort.downstream(ep))
         self.endpoints.append(ep)
         self.endpoints.sort(key=lambda x: (x.device_num, x.function_num))
@@ -157,7 +164,8 @@ class Switch:
     def set_upstream_port(self, port):
         self.upstream_bridge.set_upstream_port(port)
 
-    def add_switch_port(self, port):
+    def add_switch_port(self, port: SwitchPort):
+        assert isinstance(port, SwitchPort)
         self.switch_ports.append(port)
         cocotb.start_soon(self._run_routing(port))
         cocotb.start_soon(self._run_arbitration(port))
@@ -173,35 +181,47 @@ class Switch:
     def connect(self, port):
         self.upstream_bridge.upstream_port.connect(port)
 
-    async def _run_routing(self, port):
+    async def _run_routing(self, port: SwitchPort):
+        assert isinstance(port, SwitchPort)
         while True:
             tlp = await port.ingress_queue.get()
+            assert isinstance(tlp, Tlp), type(tlp)
+            xt_print(f"!!!!!! got here !!!!!!!! 4 Switch {self.name} src port {port.name} routing, ingress_queue get tlp, "
+                     f"total {len(port.tx_queues)} tx_queues:\n{tlp.to_str()}")
 
             tlp.ingress_port = port.bridge
 
             ok = False
 
             for other, tx_queue in port.tx_queues:
+                xt_print(f"!!!!!! got here !!!!!!!! 5 Switch {self.name} tx_queue dst port {other.name}, bridge {other.bridge.name}, "
+                         f"other is upstream {other.is_upstream}, other bridge bus ({other.bridge.sec_bus_num},{other.bridge.sub_bus_num})")
                 if other.bridge.match_tlp(tlp):
+                    xt_print(f"!!!!!! got here !!!!!!!! 6 Switch {self.name}  dst port {other.name}, other match_tlp")
                     # TLP directed to bridge
                     await tx_queue.put(tlp)
                     other.rx_event.set()
                     ok = True
                     break
-                elif other.upstream:
+                elif other.is_upstream:
+                    xt_print(f"!!!!!! got here !!!!!!!! 6 Switch {self.name}  dst port {other.name}, match is_upstream")
                     if not other.bridge.match_tlp_secondary(tlp):
+                        xt_print(f"!!!!!! got here !!!!!!!! 6+ Switch {self.name}  dst port {other.name}, not match match_tlp_secondary")
                         # TLP routed through upstream bridge
                         await tx_queue.put(tlp)
                         other.rx_event.set()
                         ok = True
                         break
                 else:
+                    xt_print(f"!!!!!! got here !!!!!!!! 6 Switch {self.name}  dst port {other.name}, match else")
                     if other.bridge.match_tlp_secondary(tlp):
+                        xt_print(f"!!!!!! got here !!!!!!!! 6+ Switch {self.name}  dst port {other.name}, match match_tlp_secondary")
                         # TLP routed through downstream bridge
                         await tx_queue.put(tlp)
                         other.rx_event.set()
                         ok = True
                         break
+            xt_print(f"!!!!!! got here !!!!!!!! 6++ Switch {self.name}  dst port {other.name}, ok={ok}")
 
             if ok:
                 continue
@@ -234,6 +254,7 @@ class Switch:
             # Unsupported request
             cpl = Tlp.create_ur_completion_for_tlp(tlp, port.bridge.pcie_id)
             self.log.debug("UR Completion: %r", cpl)
+            xt_print(f"!!!!!! got here !!!!!!!! 6+++ Switch {self.name}  port {port.name}, dst port {other.name}, handler {port.tx_handler_name},create UR Completion:\n{cpl.to_str()}")
             await port.tx_handler(cpl)
 
     async def _run_arbitration(self, port):

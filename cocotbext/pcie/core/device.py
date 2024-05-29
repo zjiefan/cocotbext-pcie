@@ -23,6 +23,7 @@ THE SOFTWARE.
 """
 
 import logging
+from typing import List
 
 from cocotb.xt_printer import xt_print
 
@@ -30,6 +31,7 @@ from .endpoint import Endpoint
 from .port import SimPort
 from .tlp import Tlp, TlpType
 from .utils import PcieId
+from .function import Function
 
 
 class Device:
@@ -45,7 +47,7 @@ class Device:
 
         self.default_function = Endpoint
 
-        self.functions = []
+        self.functions: List[Function] = []
         self.upstream_port = None
 
         xt_print(f"Create PCIe port for {self.name}")
@@ -114,7 +116,9 @@ class Device:
     def connect(self, port):
         self.upstream_port.connect(port)
 
-    async def upstream_recv(self, tlp):
+    async def upstream_recv(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
+        xt_print("got here")
         self.log.debug("Got downstream TLP: %r", tlp)
         assert tlp.check()
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
@@ -122,6 +126,7 @@ class Device:
 
             # capture address information
             self.bus_num = tlp.completer_id.bus
+            # xt_print(f"Setting bus_num for {self.name} to {self.bus_num}")
 
         # pass TLP to function
         for f in self.functions:
