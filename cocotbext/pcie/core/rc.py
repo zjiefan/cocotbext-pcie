@@ -577,7 +577,7 @@ class RootComplex(Switch):
         # memory writes are posted, so don't send a completion
 
     async def config_read(self, dev, addr, length, timeout=0, timeout_unit='ns'):
-        xt_print(f"got here config_read {self.name} read {dev}, 0x{addr:x}, length={length}")
+        xt_print(f"got here config_read {self.name} read {dev}, addr=0x{addr:x}, length={length}")
         n = 0
         data = bytearray()
 
@@ -617,7 +617,7 @@ class RootComplex(Switch):
             n += byte_length
             addr += byte_length
 
-        xt_print(f"got here result {self.name} config_read {dev}, 0x{addr:x}, length={length}: {hexdump(data[:length])}")
+        xt_print(f"got here result {self.name} config_read {dev}, addr=0x{addr:x}, length={length}: {hexdump(data[:length])}")
         return data[:length]
 
     async def config_read_words(self, dev, addr, count, byteorder='little', ws=2, timeout=0, timeout_unit='ns'):

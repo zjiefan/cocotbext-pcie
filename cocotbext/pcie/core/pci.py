@@ -92,7 +92,7 @@ class PciBus:
         self.parent = parent
 
         # child buses
-        self.children = []
+        self.children: List[PciBus] = []
         # devices on this bus
         self.devices: List[PciDevice] = []
 

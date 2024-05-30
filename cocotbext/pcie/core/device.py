@@ -28,7 +28,7 @@ from typing import List
 from cocotb.xt_printer import xt_print
 
 from .endpoint import Endpoint
-from .port import SimPort
+from .port import Port, SimPort
 from .tlp import Tlp, TlpType
 from .utils import PcieId
 from .function import Function
@@ -68,6 +68,8 @@ class Device:
 
     @bus_num.setter
     def bus_num(self, value):
+        xt_print(f"setting bus_num {self.name} to {value}")
+
         if value < 0 or value > 255:
             raise ValueError("Out of range")
         if self._bus_num != value:
@@ -100,16 +102,19 @@ class Device:
                 f.multifunction_device = True
         return function
 
-    def append_function(self, function):
+    def append_function(self, function: Function):
+        assert isinstance(function, Function)
         function.pcie_id = PcieId(self.bus_num, 0, self.next_free_function_number())
         return self.add_function(function)
 
     def make_function(self, name):
         return self.append_function(self.default_function(name))
 
-    def set_port(self, port):
+    def set_port(self, port: SimPort):
+        assert isinstance(port, SimPort)
         port.log = self.log
         port.parent = self
+        port.rx_handler_name = f"{self.name}.upstream_recv"
         port.rx_handler = self.upstream_recv
         self.upstream_port = port
 

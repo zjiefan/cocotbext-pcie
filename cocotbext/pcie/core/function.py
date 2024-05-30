@@ -139,7 +139,8 @@ class Function:
         return self._pcie_id
 
     @pcie_id.setter
-    def pcie_id(self, val):
+    def pcie_id(self, val: PcieId):
+        assert isinstance(val, PcieId)
         val = PcieId(val)
         if self._pcie_id != val:
             self.log.info("Assigned PCIe ID %s", val)
