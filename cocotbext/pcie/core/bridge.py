@@ -25,7 +25,7 @@ THE SOFTWARE.
 from cocotb.xt_printer import xt_print
 
 from .function import Function
-from .port import SimPort
+from .port import Port, SimPort
 from .tlp import Tlp, TlpType, CplStatus
 from .utils import byte_mask_update, PcieId
 
@@ -495,6 +495,7 @@ class SwitchUpstreamPort(Bridge):
         self.set_upstream_port(SimPort(fc_init=[[64, 1024, 64, 64, 64, 1024]]*8))
 
     def set_upstream_port(self, port):
+        xt_print(f"this port is {type(port)}")
         port.log = self.log
         port.parent = self
         port.rx_handler = self.upstream_recv
@@ -520,11 +521,12 @@ class SwitchDownstreamPort(Bridge):
         self.set_downstream_port(SimPort(self.name, fc_init=[[64, 1024, 64, 64, 64, 1024]]*8))
 
     def set_downstream_port(self, port: SimPort):
+        assert isinstance(port, SimPort)
         port.log = self.log
         port.parent = self
+        port.rx_handler_name = f"{self.name}.downstream_recv"
         port.rx_handler = self.downstream_recv
         self.downstream_port = port
-        assert isinstance(port, SimPort)
         self.downstream_tx_name = f"{self.name}.downstream.{port.name}"
         self.downstream_tx_handler = port.send
 

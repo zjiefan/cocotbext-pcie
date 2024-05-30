@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from functools import partial
 import logging
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import cocotb
 from cocotb.queue import Queue
@@ -388,6 +388,7 @@ class Port:
         self.log.name = f"cocotb.pcie.{type(self).__name__}"
 
         self.parent = None
+        self.rx_handler_name = None
         self.rx_handler = None
 
         self.max_link_speed = None
@@ -396,7 +397,7 @@ class Port:
         self.tx_queue: Queue[Tlp] = Queue(1)
         self.tx_queue_sync = Event()
 
-        self.rx_queue = Queue()
+        self.rx_queue: Queue[Tlp] = Queue()
 
         self.cur_link_speed = None
         self.cur_link_width = None
@@ -462,6 +463,7 @@ class Port:
                 self.tx_queue_sync.clear()
                 await First(self.tx_queue_sync.wait(), self.send_ack.wait(), self.send_fc.wait())
 
+            # xt_print(f"!!!!!! got here !!!!!!!! X {self.name} a {self.__class__.__name__}")
             pkt = None
 
             if self.send_ack.is_set():
@@ -609,6 +611,7 @@ class Port:
     async def _run_receive(self):
         while True:
             tlp = await self.rx_queue.get()
+            assert isinstance(tlp, Tlp)
             if self.rx_handler is None:
                 raise Exception("Receive handler not set")
             await self.rx_handler(tlp)
