@@ -1022,7 +1022,14 @@ class PciDevice:
         if self.msix_enabled:
             return -1
 
+        msix_offset = self.get_capability_offset(PciCapId.MSIX)
+        xt_print(f"enable range msix vec count() begin at {get_sim_time('ns')}, offset=0x{msix_offset:04x}")
+        all_config = await self.config_read(0, 256)
+        xt_print("config space dump:")
+        print(hexdump(all_config))
+
         nvec = await self.msix_vec_count()
+        xt_print(f"enable range msix vec count() end at {get_sim_time('ns')}, nvec={nvec}")
         if nvec < 0:
             return nvec
         if nvec < min_vecs:
@@ -1048,12 +1055,16 @@ class PciDevice:
     async def alloc_irq_vectors(self, min_vecs, max_vecs, flags=0):
         nvecs = -1
         if 1:
+            xt_print(f"enable msix range start at {get_sim_time('ns')}")
             nvecs = await self.enable_msix_range(min_vecs, max_vecs, flags)
+            xt_print(f"enable msix range end at {get_sim_time('ns')}")
             if nvecs > 0:
                 return nvecs
 
         if 1:
+            xt_print(f"self.enable_msi_range start at {get_sim_time('ns')}")
             nvecs = await self.enable_msi_range(min_vecs, max_vecs)
+            xt_print(f"self.enable_msi_range end at {get_sim_time('ns')}")
             if nvecs > 0:
                 return nvecs
 

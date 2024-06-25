@@ -200,6 +200,9 @@ class RootComplex(Switch):
     async def downstream_send(self, tlp: Tlp):
         self.log.debug("Sending TLP: %r", tlp)
         assert tlp.check()
+        # if tlp.data == bytearray(b'\xff\xff\xff\xff'):
+        #     assert False
+
         xt_print(f"!!!!!! got here !!!!!!!! 1 {self.name}")
         await self.upstream_bridge.upstream_recv(tlp)
 
