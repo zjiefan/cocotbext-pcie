@@ -22,5 +22,5 @@ THE SOFTWARE.
 
 """
 
-from .us_model import UltraScalePcieDevice, UltraScalePcieFunction
+# from .us_model import UltraScalePcieDevice, UltraScalePcieFunction
 from .usp_model import UltraScalePlusPcieDevice, UltraScalePlusPcieFunction
