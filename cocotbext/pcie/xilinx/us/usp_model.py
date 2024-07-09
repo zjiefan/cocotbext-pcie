@@ -38,6 +38,8 @@ from cocotbext.pcie.core.tlp import Tlp, TlpType, TlpAttr, CplStatus
 from .interface import RqSink, RcSource, CqSource, CcSink
 from .tlp import Tlp_us, ErrorCode
 
+from cocotb.xt_printer import xt_print
+
 
 valid_configs = [
     # speed, links, width, freq
@@ -1129,6 +1131,7 @@ class UltraScalePlusPcieDevice(Device):
             while not self.cq_np_queue.empty() and self.cq_np_req_count > 0:
                 tlp = self.cq_np_queue.get_nowait()
                 self.cq_np_req_count -= 1
+
                 await self.cq_source.send(tlp.pack_us_cq())
 
             # handle new requests

@@ -35,6 +35,7 @@ from .caps import PmCapability, PcieCapability
 from .region import MemoryTlpRegion, IoTlpRegion
 from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
 from .utils import PcieId
+from cocotb.xt_printer import xt_print
 
 
 class Function:
@@ -330,6 +331,7 @@ class Function:
         self.ext_capabilities.deregister(cap)
 
     def configure_bar(self, idx, size, ext=False, prefetch=False, io=False):
+        xt_print(f"configure_bar idx={idx}, size={size}, io={io}")
         mask = 2**((size-1).bit_length())-1
 
         if idx >= len(self.bar) or (ext and idx+1 >= len(self.bar)):
@@ -349,6 +351,7 @@ class Function:
 
             if prefetch:
                 self.bar[idx] |= 8
+        xt_print(f"configured bar idx={idx}, self.bar=0x{self.bar[idx]:x}, self.bar_mask=0x{self.bar_mask[idx]:x}")
 
     def configure_io_bar(self, idx, size):
         self.configure_bar(idx, size, io=True)

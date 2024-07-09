@@ -29,6 +29,8 @@ from cocotbext.pcie.core.tlp import Tlp, TlpFmt, TlpType, TlpAt, TlpAttr, TlpTc,
 from cocotbext.pcie.core.utils import PcieId
 from .interface import UsPcieFrame
 
+from cocotb.xt_printer import xt_print
+from dpkt import hexdump
 
 # req_type field
 class ReqType(enum.IntEnum):
@@ -123,6 +125,7 @@ class Tlp_us(Tlp):
             self.request_completed == tlp.request_completed
 
     def pack_us_cq(self):
+        xt_print(f"pack_us_cq is called, header={hexdump(self.pack_header())}, data={hexdump(self.data)}")
         pkt = UsPcieFrame()
 
         if self.fmt_type in {TlpType.MEM_READ, TlpType.MEM_READ_64, TlpType.MEM_READ_LOCKED, TlpType.MEM_READ_LOCKED_64,
@@ -145,6 +148,9 @@ class Tlp_us(Tlp):
             dw |= (self.tc & 0x7) << 25
             dw |= (self.attr & 0x7) << 28
             pkt.data.append(dw)
+            for i, d in enumerate(pkt.data):
+                xt_print(f"pack_us_cq data, word {i} {d:08x}")
+            xt_print(self.__repr__())
 
             pkt.first_be = self.first_be
             pkt.last_be = self.last_be

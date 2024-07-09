@@ -84,6 +84,7 @@ class Endpoint(Function):
     +----------------+----------------+----------------+----------------+
     """
     async def read_config_register(self, reg):
+        assert False
         if reg == 4:
             # Base Address Register 0
             return self.bar[0] & 0xffffffff

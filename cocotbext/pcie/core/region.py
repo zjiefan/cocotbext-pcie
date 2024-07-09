@@ -24,8 +24,10 @@ THE SOFTWARE.
 
 import cocotb
 from cocotbext.axi import Region
+from xeetah.utils.utils import hexdump
 
 from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
+from cocotb.xt_printer import xt_print, func_loc
 
 
 class MemoryTlpRegion(Region):
@@ -173,6 +175,10 @@ class IoTlpRegion(Region):
 
             if zero_len:
                 req.first_be = 0
+
+            xt_print(f"read req {req}")
+            xt_print(hexdump(bytes(req.pack_header())))
+            xt_print(f"self.func.perform_nonposted_operation at: {func_loc(self.func.perform_nonposted_operation)}")
 
             op_list.append((first_pad, cocotb.start_soon(self.func.perform_nonposted_operation(req, timeout, timeout_unit))))
 
