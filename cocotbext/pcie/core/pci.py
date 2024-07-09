@@ -319,11 +319,11 @@ class PciDevice:
         self.sec_bus_num = 0
         self.sub_bus_num = 0
 
-        self.bar = [None]*6
-        self.bar_raw = [None]*6
-        self.bar_addr = [None]*6
-        self.bar_size = [None]*6
-        self.bar_window = [None]*6
+        self.bar = {}
+        self.bar_raw = {}
+        self.bar_addr = {}
+        self.bar_size = {}
+        self.bar_window = {}
 
         self.expansion_rom_raw = None
         self.expansion_rom_addr = None
