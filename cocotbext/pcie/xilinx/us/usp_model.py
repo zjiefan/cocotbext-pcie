@@ -791,6 +791,8 @@ class UltraScalePlusPcieDevice(Device):
         # configure functions
 
         self.make_function()
+        self.functions[0].vendor_id = 0x1002
+        self.functions[0].device_id = 0x0005 # arbitary number of ultrascale+
 
         if self.pf0_msi_enable:
             self.functions[0].msi_cap.msi_multiple_message_capable = (self.pf0_msi_count-1).bit_length()

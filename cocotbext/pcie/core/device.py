@@ -23,11 +23,13 @@ THE SOFTWARE.
 """
 
 import logging
+from typing import List
 
 from .endpoint import Endpoint
 from .port import SimPort
 from .tlp import Tlp, TlpType
 from .utils import PcieId
+from .function import Function
 
 
 class Device:
@@ -41,7 +43,7 @@ class Device:
 
         self.default_function = Endpoint
 
-        self.functions = []
+        self.functions: List[Function] = []
         self.upstream_port = None
 
         self.set_port(SimPort(fc_init=[[64, 1024, 64, 64, 0, 0]]*8))
