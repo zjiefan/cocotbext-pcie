@@ -614,6 +614,7 @@ class Port:
             assert isinstance(tlp, Tlp)
             if self.rx_handler is None:
                 raise Exception("Receive handler not set")
+            xt_print(f"Port async def _run_receive(self), name={self.name}, type={type(self)} id={id(self)}, parent={type(self.parent)}, id={id(self.parent)}")
             await self.rx_handler(tlp)
 
     def handle_dllp(self, dllp):

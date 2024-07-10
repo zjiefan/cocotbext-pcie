@@ -26,7 +26,7 @@ import struct
 from typing import List, Optional
 
 from cocotb.triggers import Timer
-from cocotb.xt_printer import xt_print
+from cocotb.xt_printer import xt_print, func_loc
 from cocotb.utils import get_sim_time
 from dpkt import hexdump
 
@@ -199,6 +199,11 @@ class PciBus:
                 dev.vendor_id = val & 0xffff
                 dev.device_id = (val >> 16) & 0xffff
                 self.devices.append(dev)
+
+
+
+                assert isinstance(dev, PciDevice)
+                xt_print(f"ssetup dev {type(dev)}, setup function {func_loc(dev.setup)}")
 
                 await dev.setup()
 

@@ -29,6 +29,7 @@ from .function import Function
 from .tlp import Tlp, TlpType
 from .utils import byte_mask_update
 
+from cocotb.xt_printer import xt_print, func_loc
 
 class Endpoint(Function):
     """PCIe endpoint function, implements endpoint config space"""
@@ -84,7 +85,7 @@ class Endpoint(Function):
     +----------------+----------------+----------------+----------------+
     """
     async def read_config_register(self, reg):
-        assert False
+        xt_print(f"read_config_register reg={reg}, type={type(self)}, id={id(self)}")
         if reg == 4:
             # Base Address Register 0
             return self.bar[0] & 0xffffffff
@@ -135,6 +136,16 @@ class Endpoint(Function):
             return await super().read_config_register(reg)
 
     async def write_config_register(self, reg, data, mask):
+
+
+        if 4 <= reg <= 9:
+            bar_id = reg - 4
+            bar = self.bar[bar_id]
+            bar_mask = self.bar_mask[bar_id]
+            xt_print(f"before write_config_register, bar[{bar_id}]: bar=0x{bar:08x}, mask=0x{bar_mask:08x}")
+            assert False
+
+
         if reg == 4:
             # Base Address Register 0
             self.bar[0] = byte_mask_update(self.bar[0], mask, data, self.bar_mask[0])
@@ -165,6 +176,13 @@ class Endpoint(Function):
                 self.interrupt_line = data & 0xff
         else:
             await super().write_config_register(reg, data, mask)
+
+        if 4 <= reg <= 9:
+            bar_id = reg - 4
+            bar = self.bar[bar_id]
+            bar_mask = self.bar_mask[bar_id]
+            xt_print(f"after  write_config_register, bar[{bar_id}]: bar=0x{bar:08x}, mask=0x{bar_mask:08x}")
+
 
 
 class MemoryEndpoint(Endpoint):
