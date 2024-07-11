@@ -911,7 +911,8 @@ class UltraScalePlusPcieDevice(Device):
         else:
             return self.active_request[0:32].count(None)
 
-    async def upstream_recv(self, tlp):
+    async def upstream_recv(self, tlp: Tlp):
+        assert isinstance(tlp, Tlp)
         self.log.debug("Got downstream TLP: %r", tlp)
 
         if tlp.fmt_type in {TlpType.CFG_READ_0, TlpType.CFG_WRITE_0}:
