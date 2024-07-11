@@ -294,6 +294,7 @@ class UsPcieSource(UsPcieBase):
         await self.idle_event.wait()
 
     async def _run_source(self):
+        self.log.info(f"{self.bus._name} UsPcieSource _run_source starting")
         self.active = False
 
         clock_edge_event = RisingEdge(self.clock)
@@ -487,6 +488,7 @@ class RqSource(UsPcieSource):
             self.parity_offset = 28
 
     async def _run(self):
+        self.log.info(f"{self.bus._name} RqSource _run starting")
         while True:
             frame = await self._get_frame()
             frame_offset = 0
@@ -881,6 +883,7 @@ class CqSource(UsPcieSource):
             self.parity_offset = 53
 
     async def _run(self):
+        self.log.info(f"{self.bus._name} CqSource _run starting")
         while True:
             frame = await self._get_frame()
             frame_offset = 0
@@ -975,6 +978,7 @@ class CqSink(UsPcieSink):
     async def _run(self):
         self.active = False
         frame = UsPcieFrame()
+        self.log.info(f"{self.bus._name} CqSink _run starting")
 
         while True:
             while not self.sample_obj:
@@ -1071,6 +1075,7 @@ class CcSource(UsPcieSource):
             self.parity_offset = 1
 
     async def _run(self):
+        self.log.info(f"{self.bus._name} CcSource _run starting")
         while True:
             frame = await self._get_frame()
             frame_offset = 0
@@ -1151,6 +1156,7 @@ class CcSink(UsPcieSink):
             self.parity_offset = 1
 
     async def _run(self):
+        self.log.info(f"{self.bus._name} CcSink _run starting")
         self.active = False
         frame = UsPcieFrame()
 
