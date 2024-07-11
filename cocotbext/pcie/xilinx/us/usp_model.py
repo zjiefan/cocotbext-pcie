@@ -1118,6 +1118,7 @@ class UltraScalePlusPcieDevice(Device):
                 return
 
     async def _run_cq_logic(self):
+        self.log.info("UltraScalePlusPcieDevice starting _run_cq_logic")
         clock_edge_event = RisingEdge(self.user_clk)
 
         while True:
@@ -1156,6 +1157,7 @@ class UltraScalePlusPcieDevice(Device):
                 self.pcie_cq_np_req_count.value = self.cq_np_req_count
 
     async def _run_cc_logic(self):
+        self.log.info("UltraScalePlusPcieDevice starting _run_cc_logic")
         while True:
             tlp = Tlp_us.unpack_us_cc(await self.cc_sink.recv(), self.enable_parity)
 
@@ -1166,6 +1168,7 @@ class UltraScalePlusPcieDevice(Device):
                 await self.send(Tlp(tlp))
 
     async def _run_rq_logic(self):
+        self.log.info("UltraScalePlusPcieDevice starting _run_rq_logic")
         while True:
             tlp = Tlp_us.unpack_us_rq(await self.rq_sink.recv(), self.enable_parity)
 
