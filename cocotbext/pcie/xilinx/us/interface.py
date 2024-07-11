@@ -128,10 +128,6 @@ class UsPcieBase:
         self.bus = bus
         self.clock = clock
         self.reset = reset
-        if bus._name:
-            self.log = logging.getLogger(f"cocotb.{bus._entity._name}.{bus._name}")
-        else:
-            self.log = logging.getLogger(f"cocotb.{bus._entity._name}")
 
         super().__init__(*args, **kwargs)
 
@@ -234,6 +230,10 @@ class UsPcieSource(UsPcieBase):
 
     def __init__(self, bus, clock, reset=None, segments=1, *args, **kwargs):
         super().__init__(bus, clock, reset, segments, *args, **kwargs)
+        if bus._name:
+            self.log = logging.getLogger(f"cocotb.{bus._entity._name}.{bus._name}.source")
+        else:
+            self.log = logging.getLogger(f"cocotb.{bus._entity._name}.source")
 
         self.drive_obj = None
         self.drive_sync = Event()
@@ -357,6 +357,10 @@ class UsPcieSink(UsPcieBase):
 
     def __init__(self, bus, clock, reset=None, segments=1, *args, **kwargs):
         super().__init__(bus, clock, reset, segments, *args, **kwargs)
+        if bus._name:
+            self.log = logging.getLogger(f"cocotb.{bus._entity._name}.{bus._name}.sink")
+        else:
+            self.log = logging.getLogger(f"cocotb.{bus._entity._name}.sink")
 
         self.sample_obj = None
         self.sample_sync = Event()
