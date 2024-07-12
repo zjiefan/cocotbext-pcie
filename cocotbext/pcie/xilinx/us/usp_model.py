@@ -381,7 +381,7 @@ class UltraScalePlusPcieDevice(Device):
         self.rq_seq_num = Queue()
         self.rq_tag = Queue()
         self.rc_queue = Queue()
-        self.cq_queue = Queue()
+        self.cq_queue: Queue[Tlp_us] = Queue()
         self.cq_np_queue = Queue()
         self.cq_np_req_count = 0
         self.msg_queue = Queue()
@@ -1138,6 +1138,7 @@ class UltraScalePlusPcieDevice(Device):
             # handle new requests
             while not self.cq_queue.empty():
                 tlp = self.cq_queue.get_nowait()
+                assert isinstance(tlp, Tlp_us)
 
                 if tlp.fmt_type in {TlpType.IO_READ, TlpType.IO_WRITE, TlpType.MEM_READ, TlpType.MEM_READ_64}:
                     # non-posted request
