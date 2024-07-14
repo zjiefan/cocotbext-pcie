@@ -302,6 +302,7 @@ class Tlp:
     @classmethod
     def create_completion_for_tlp(cls, tlp, completer_id, has_data=False, status=CplStatus.SC):
         """Prepare completion for TLP"""
+        assert isinstance(tlp, Tlp)
         cpl = cls()
         if has_data:
             cpl.fmt_type = TlpType.CPL_DATA
