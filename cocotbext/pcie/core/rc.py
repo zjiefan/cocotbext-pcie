@@ -80,7 +80,7 @@ class RootComplex(Switch):
 
         self.io_base = 0x8000_0000
         self.io_limit = self.io_base
-        self.mem_base = 0xc000_0000
+        self.mem_base = 0xa600_0000
         self.mem_limit = self.mem_base
         self.prefetchable_mem_base = 0x8000_0000_0000_0000
         self.prefetchable_mem_limit = self.prefetchable_mem_base
