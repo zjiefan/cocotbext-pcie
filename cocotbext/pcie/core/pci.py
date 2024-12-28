@@ -153,7 +153,7 @@ class PciBus:
 
             dev_id = PcieId(self.bus_num, d, 0)
 
-            self.rc.log.info("Enumerating bus %d device %d", self.bus_num, d)
+            # self.rc.log.info("Enumerating bus %d device %d", self.bus_num, d)
 
             # read vendor ID and device ID
             val = await self.rc.config_read_dword(dev_id, 0x000, 'little', timeout, timeout_unit)

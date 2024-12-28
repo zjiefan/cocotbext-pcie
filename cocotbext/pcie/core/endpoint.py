@@ -224,8 +224,8 @@ class MemoryEndpoint(Endpoint):
             self.regions[region][addr:addr+len(data)] = data
 
     async def handle_io_read_tlp(self, tlp):
-        self.log.info("IO read, address 0x%08x, BE 0x%x, tag %d",
-                tlp.address, tlp.first_be, tlp.tag)
+        # self.log.info("IO read, address 0x%08x, BE 0x%x, tag %d",
+        #         tlp.address, tlp.first_be, tlp.tag)
 
         bar = self.match_bar(tlp.address, True)
 
@@ -273,8 +273,8 @@ class MemoryEndpoint(Endpoint):
         await self.send(cpl)
 
     async def handle_io_write_tlp(self, tlp):
-        self.log.info("IO write, address 0x%08x, BE 0x%x, tag %d, data 0x%08x",
-                tlp.address, tlp.first_be, tlp.tag, struct.unpack('<L', tlp.get_data())[0])
+        # self.log.info("IO write, address 0x%08x, BE 0x%x, tag %d, data 0x%08x",
+        #         tlp.address, tlp.first_be, tlp.tag, struct.unpack('<L', tlp.get_data())[0])
 
         bar = self.match_bar(tlp.address, True)
 
@@ -320,8 +320,8 @@ class MemoryEndpoint(Endpoint):
         await self.send(cpl)
 
     async def handle_mem_read_tlp(self, tlp):
-        self.log.info("Memory read, address 0x%08x, length %d, BE 0x%x/0x%x, tag %d",
-                tlp.address, tlp.length, tlp.first_be, tlp.last_be, tlp.tag)
+        # self.log.info("Memory read, address 0x%08x, length %d, BE 0x%x/0x%x, tag %d",
+        #         tlp.address, tlp.length, tlp.first_be, tlp.last_be, tlp.tag)
 
         bar = self.match_bar(tlp.address)
 
@@ -376,8 +376,8 @@ class MemoryEndpoint(Endpoint):
             addr += cpl_dw_length*4 - (addr & 3)
 
     async def handle_mem_write_tlp(self, tlp):
-        self.log.info("Memory write, address 0x%08x, length %d, BE 0x%x/0x%x",
-                tlp.address, tlp.length, tlp.first_be, tlp.last_be)
+        # self.log.info("Memory write, address 0x%08x, length %d, BE 0x%x/0x%x",
+        #         tlp.address, tlp.length, tlp.first_be, tlp.last_be)
 
         bar = self.match_bar(tlp.address)
 

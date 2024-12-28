@@ -302,8 +302,8 @@ class RootComplex(Switch):
         return completions
 
     async def handle_io_read_tlp(self, tlp):
-        self.log.info("IO read, address 0x%08x, BE 0x%x, tag %d",
-                tlp.address, tlp.first_be, tlp.tag)
+        # self.log.info("IO read, address 0x%08x, BE 0x%x, tag %d",
+        #         tlp.address, tlp.first_be, tlp.tag)
 
         if not self.io_address_space.find_regions(tlp.address, tlp.length*4):
             self.log.warning("IO request did not match any regions: %r", tlp)
@@ -364,8 +364,8 @@ class RootComplex(Switch):
         await self.send(cpl)
 
     async def handle_io_write_tlp(self, tlp):
-        self.log.info("IO write, address 0x%08x, BE 0x%x, tag %d, data 0x%08x",
-                tlp.address, tlp.first_be, tlp.tag, int.from_bytes(tlp.get_data(), 'little'))
+        # self.log.info("IO write, address 0x%08x, BE 0x%x, tag %d, data 0x%08x",
+        #         tlp.address, tlp.first_be, tlp.tag, int.from_bytes(tlp.get_data(), 'little'))
 
         if not self.io_address_space.find_regions(tlp.address, tlp.length*4):
             self.log.warning("IO request did not match any regions: %r", tlp)
@@ -424,8 +424,8 @@ class RootComplex(Switch):
         await self.send(cpl)
 
     async def handle_mem_read_tlp(self, tlp):
-        self.log.info("Memory read, address 0x%08x, length %d, BE 0x%x/0x%x, tag %d",
-                tlp.address, tlp.length, tlp.first_be, tlp.last_be, tlp.tag)
+        # self.log.info("Memory read, address 0x%08x, length %d, BE 0x%x/0x%x, tag %d",
+        #         tlp.address, tlp.length, tlp.first_be, tlp.last_be, tlp.tag)
 
         if not self.mem_address_space.find_regions(tlp.address, tlp.length*4):
             self.log.warning("Memory request did not match any regions: %r", tlp)
@@ -493,8 +493,8 @@ class RootComplex(Switch):
             addr += cpl_dw_length*4 - (addr & 3)
 
     async def handle_mem_write_tlp(self, tlp):
-        self.log.info("Memory write, address 0x%08x, length %d, BE 0x%x/0x%x",
-                tlp.address, tlp.length, tlp.first_be, tlp.last_be)
+        # self.log.info("Memory write, address 0x%08x, length %d, BE 0x%x/0x%x",
+        #         tlp.address, tlp.length, tlp.first_be, tlp.last_be)
 
         if not self.mem_address_space.find_regions(tlp.address, tlp.length*4):
             self.log.warning("Memory request did not match any regions: %r", tlp)

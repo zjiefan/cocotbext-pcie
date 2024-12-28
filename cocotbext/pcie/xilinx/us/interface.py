@@ -490,7 +490,7 @@ class RqSource(UsPcieSource):
         while True:
             frame = await self._get_frame()
             frame_offset = 0
-            self.log.info("TX RQ frame: %r", frame)
+            # self.log.info("TX RQ frame: %r", frame)
             first = True
 
             while frame is not None:
@@ -503,7 +503,7 @@ class RqSource(UsPcieSource):
                         if not self.empty():
                             frame = self._get_frame_nowait()
                             frame_offset = 0
-                            self.log.info("TX RQ frame: %r", frame)
+                            # self.log.info("TX RQ frame: %r", frame)
                             first = True
                         else:
                             break
@@ -666,7 +666,7 @@ class RqSink(UsPcieSink):
                         frame.parity.append((sample.tuser >> (lane*4+self.parity_offset)) & 0xf)
 
                 if seg_eop & (1 << seg):
-                    self.log.info("RX RQ frame: %r", frame)
+                    # self.log.info("RX RQ frame: %r", frame)
                     self._sink_frame(frame)
                     self.active = False
                     frame = None
@@ -690,7 +690,7 @@ class RcSource(UsPcieSource):
         while True:
             frame = await self._get_frame()
             frame_offset = 0
-            self.log.info("TX RC frame: %r", frame)
+            # self.log.info("TX RC frame: %r", frame)
             first = True
 
             while frame is not None:
@@ -703,7 +703,7 @@ class RcSource(UsPcieSource):
                         if not self.empty():
                             frame = self._get_frame_nowait()
                             frame_offset = 0
-                            self.log.info("TX RC frame: %r", frame)
+                            # self.log.info("TX RC frame: %r", frame)
                             first = True
                         else:
                             break
@@ -858,7 +858,7 @@ class RcSink(UsPcieSink):
                         frame.parity.append((sample.tuser >> (lane*4+self.parity_offset)) & 0xf)
 
                 if seg_eop & (1 << seg):
-                    self.log.info("RX RC frame: %r", frame)
+                    # self.log.info("RX RC frame: %r", frame)
                     self._sink_frame(frame)
                     self.active = False
                     frame = None
