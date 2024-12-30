@@ -270,6 +270,7 @@ class Tlp:
         ret = True
         if self.fmt == TlpFmt.THREE_DW_DATA or self.fmt == TlpFmt.FOUR_DW_DATA:
             if self.length*4 != len(self.data):
+                print(self.length, len(self.data))
                 print(f"TLP validation failed, length field does not match data: {self!r}")
                 ret = False
             if 0 > self.length > 1024:

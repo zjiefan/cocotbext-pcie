@@ -29,6 +29,7 @@ from .port import SimPort
 from .tlp import Tlp, TlpType
 from .utils import PcieId
 
+from cocotb.xt_printer import func_loc
 
 class Device:
     """PCIe device, container for multiple functions"""
@@ -156,8 +157,13 @@ class Device:
 
     async def upstream_send(self, tlp):
         self.log.debug("Sending upstream TLP: %r", tlp)
+        print(type(tlp))
+        print(tlp)
+        assert isinstance(tlp, Tlp)
         assert tlp.check()
+        print(f"upstream_port.send at {func_loc(self.upstream_port.send)}")
         await self.upstream_port.send(tlp)
 
     async def send(self, tlp):
+        print(f"upstream send: {func_loc(self.upstream_send)}")
         await self.upstream_send(tlp)

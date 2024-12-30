@@ -32,6 +32,7 @@ from cocotb.utils import get_sim_time, get_sim_steps
 
 from .dllp import Dllp, DllpType, FcType
 from .tlp import Tlp
+from cocotb.xt_printer import func_loc
 
 PCIE_GEN_RATE = {
     1: 2.5e9*8/10,
@@ -430,6 +431,7 @@ class Port:
         return 0
 
     async def send(self, pkt):
+        print("Jiefan port send")
         pkt.release_fc()
         await self.fc_state[self.classify_tlp_vc(pkt)].tx_tlp_fc_gate(pkt)
         await self.tx_queue.put(pkt)
@@ -533,12 +535,15 @@ class Port:
                 self.log.debug("Send DLLP %s", pkt)
             elif not self.tx_queue.empty():
                 pkt = self.tx_queue.get_nowait()
+                print(f"Jiefan got one pkt {pkt}")
                 pkt.seq = self.next_transmit_seq
                 self.log.debug("Send TLP %s", pkt)
                 self.next_transmit_seq = (self.next_transmit_seq + 1) & 0xfff
                 self.retry_buffer.put_nowait(pkt)
 
             if pkt:
+                if isinstance(pkt, Tlp):
+                    print(f"Jiefan handle_tx {func_loc(self.handle_tx)}")
                 await self.handle_tx(pkt)
 
     async def handle_tx(self, pkt):
@@ -559,6 +564,7 @@ class Port:
                 self.start_ack_latency_timer()
                 pkt = Tlp(pkt)
                 self.fc_state[self.classify_tlp_vc(pkt)].rx_process_tlp_fc(pkt)
+                print(f"Jiefan rx_queue put_nowait at {func_loc(self.rx_queue.put_nowait)}")
                 self.rx_queue.put_nowait(pkt)
             elif (self.next_recv_seq - pkt.seq) & 0xfff < 2048:
                 self.log.warning("Received duplicate TLP, discarding (seq %d, expecting %d)", pkt.seq, self.next_recv_seq)
@@ -704,10 +710,15 @@ class SimPort(Port):
 
     async def handle_tx(self, pkt):
         await Timer(max(int(pkt.get_wire_size() * self.symbol_period * self.time_scale), 1), 'step')
+        if isinstance(pkt, Tlp):
+            print(f"Jiefan to transmit at {func_loc(self._transmit)}")
         cocotb.start_soon(self._transmit(pkt))
 
     async def _transmit(self, pkt):
         if self.other is None:
             raise Exception("Port not connected")
         await Timer(max(self.link_delay_steps, 1), 'step')
+        if isinstance(pkt, Tlp):
+            print(f"Jiefan to other recv at {func_loc(self.other.ext_recv)}")
+            print(f"other is {type(self.other)}")
         await self.other.ext_recv(pkt)

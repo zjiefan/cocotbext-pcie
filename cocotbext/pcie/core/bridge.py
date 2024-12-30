@@ -27,6 +27,7 @@ from .port import SimPort
 from .tlp import Tlp, TlpType, CplStatus
 from .utils import byte_mask_update, PcieId
 
+from cocotb.xt_printer import func_loc
 
 class Bridge(Function):
     """PCIe bridge function, implements bridge config space and TLP routing"""
@@ -318,6 +319,9 @@ class Bridge(Function):
             self.master_data_parity_error = True
         if self.upstream_tx_handler is None:
             raise Exception("Transmit handler not set")
+        if isinstance(tlp, Tlp) and isinstance(self, HostBridge):
+            print(f"Jiefan got here 6 .................")
+
         await self.upstream_tx_handler(tlp)
 
     async def upstream_recv(self, tlp):
@@ -396,8 +400,14 @@ class Bridge(Function):
 
     async def downstream_recv(self, tlp):
         self.log.debug("Routing upstream TLP: %r", tlp)
+        if isinstance(tlp, Tlp) and isinstance(self, HostBridge):
+            print(f"Jiefan got here .................")
+
         assert tlp.check()
         if self.bridge_parity_error_response_enable and tlp.ep:
+            if isinstance(tlp, Tlp) and isinstance(self, HostBridge):
+                print(f"Jiefan got here 2 .................")
+
             self.log.warning("Received poisoned TLP on secondary interface, reporting master data parity error")
             self.sec_master_data_parity_error = True
 
@@ -406,6 +416,9 @@ class Bridge(Function):
             pass
         elif not self.root and self.match_tlp(tlp):
             # TLPs targeting bridge function
+            if isinstance(tlp, Tlp) and isinstance(self, HostBridge):
+                print(f"Jiefan got here 3 .................")
+
             if tlp.is_completion():
                 if tlp.status == CplStatus.CA:
                     self.log.warning("Received completion with CA status on secondary interface, reporting target abort")
@@ -416,9 +429,18 @@ class Bridge(Function):
             await self.handle_tlp(tlp)
             return
         elif not self.match_tlp_secondary(tlp) or self.root:
+
+            if isinstance(tlp, Tlp) and isinstance(self, HostBridge):
+                print(f"Jiefan got here 4 ................. {tlp.fmt_type} {func_loc(self.upstream_send)}")
+
+
             # Route TLPs from secondary side to primary side
             await self.upstream_send(tlp)
             return
+
+        if isinstance(tlp, Tlp) and isinstance(self, HostBridge):
+            print(f"Jiefan got here 5 .................")
+
 
         tlp.release_fc()
 

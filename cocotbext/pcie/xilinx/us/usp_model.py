@@ -38,6 +38,8 @@ from cocotbext.pcie.core.tlp import Tlp, TlpType, TlpAttr, CplStatus
 from .interface import RqSink, RcSource, CqSource, CcSink
 from .tlp import Tlp_us, ErrorCode
 
+from cocotb.xt_printer import xt_print, func_loc
+
 
 valid_configs = [
     # speed, links, width, freq
@@ -1164,7 +1166,10 @@ class UltraScalePlusPcieDevice(Device):
 
     async def _run_rq_logic(self):
         while True:
-            tlp = Tlp_us.unpack_us_rq(await self.rq_sink.recv(), self.enable_parity)
+            msg = await self.rq_sink.recv()
+            tlp = Tlp_us.unpack_us_rq(msg, self.enable_parity)
+            print(f"===== Jiefan received rq message, type {type(self)} {tlp.fmt_type}")
+
 
             if tlp.discontinue:
                 self.log.warning("Discontinue bit set, discarding TLP: %r", tlp)
@@ -1214,10 +1219,15 @@ class UltraScalePlusPcieDevice(Device):
             else:
                 # posted request; send immediately
 
+                print(f"===== Jiefan write got here 1 {self.functions[0]}")
+                print(f"===== Jiefan write got here 2 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx --------------------------- {tlp.requester_id.function=} {self.functions[tlp.requester_id.function].bus_master_enable=}")
+
                 if not self.functions[tlp.requester_id.function].bus_master_enable:
                     self.log.warning("Bus mastering disabled, dropping TLP: %r", tlp)
                     # TODO: internal response
                     continue
+
+                print(f"send function ",func_loc(self.send))
 
                 await self.send(Tlp(tlp))
                 self.rq_seq_num.put_nowait(tlp.seq_num)
@@ -1354,6 +1364,7 @@ class UltraScalePlusPcieDevice(Device):
                 if cfg_mgmt_read:
                     self.cfg_mgmt_read_data.value = await self.functions[function].read_config_register(reg_num)
                 else:
+                    print("************************** write_config_register is called *******************")
                     await self.functions[function].write_config_register(reg_num, write_data, byte_enable)
                 self.cfg_mgmt_read_write_done.value = 1
             # cfg_mgmt_debug_access

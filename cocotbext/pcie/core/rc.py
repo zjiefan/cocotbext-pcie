@@ -38,6 +38,8 @@ from .tlp import Tlp, TlpType, TlpAttr, TlpTc, CplStatus
 from .utils import PcieId
 from .pci import PciDevice, PciHostBridge
 
+from dpkt import hexdump
+
 
 class RootComplex(Switch):
     def __init__(self, mem_address_space=None, io_address_space=None, *args, **kwargs):
@@ -202,6 +204,8 @@ class RootComplex(Switch):
 
     async def downstream_recv(self, tlp):
         self.log.debug("Got TLP: %r", tlp)
+        if isinstance(tlp, Tlp):
+            print(f"Jiefan got here 7 ................. {tlp.fmt_type}, {tlp.address:x}")
         assert tlp.check()
         await self.handle_tlp(tlp)
 
@@ -493,6 +497,7 @@ class RootComplex(Switch):
             addr += cpl_dw_length*4 - (addr & 3)
 
     async def handle_mem_write_tlp(self, tlp):
+        print(f"Jiefan got here 8 .................")
         self.log.info("Memory write, address 0x%08x, length %d, BE 0x%x/0x%x",
                 tlp.address, tlp.length, tlp.first_be, tlp.last_be)
 
@@ -555,6 +560,8 @@ class RootComplex(Switch):
         # perform writes
         try:
             for addr, data in write_ops:
+                print(f"========= Jiefan got here 9: write {addr=:x}, {len(data)}:\n{hexdump(data)}")
+
                 await self.mem_address_space.write(addr, data)
         except Exception:
             self.log.warning("Memory write operation failed: %r", tlp)
